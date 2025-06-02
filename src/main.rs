@@ -1,80 +1,12 @@
 use std::fs::File;
 use std::io::prelude::*;
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Neg, Sub};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Float3 {
     x: f32,
     y: f32,
     z: f32,
-}
-
-impl Add for Float3 {
-    type Output = Self;
-
-    fn add(self, other: Self) -> Self {
-        Self {
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
-        }
-    }
-}
-
-impl Mul<f32> for Float3 {
-    type Output = Self;
-
-    fn mul(self, rhs: f32) -> Self::Output {
-        Self {
-            x: self.x * rhs,
-            y: self.y * rhs,
-            z: self.z * rhs,
-        }
-    }
-}
-
-impl Mul<Float3> for f32 {
-    type Output = Float3;
-
-    fn mul(self, rhs: Float3) -> Self::Output {
-        rhs * self
-    }
-}
-
-impl Neg for Float3 {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        Self {
-            x: -self.x,
-            y: -self.y,
-            z: -self.z,
-        }
-    }
-}
-
-impl Sub for Float3 {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Float3 {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-            z: self.z - rhs.z,
-        }
-    }
-}
-
-impl Sub<&Float3> for Float3 {
-    type Output = Self;
-
-    fn sub(self, rhs: &Self) -> Self::Output {
-        Float3 {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-            z: self.z - rhs.z,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -94,25 +26,6 @@ impl Add for Float2 {
     }
 }
 
-impl Mul<f32> for Float2 {
-    type Output = Self;
-
-    fn mul(self, rhs: f32) -> Self::Output {
-        Self {
-            x: self.x * rhs,
-            y: self.y * rhs,
-        }
-    }
-}
-
-impl Mul<Float2> for f32 {
-    type Output = Float2;
-
-    fn mul(self, rhs: Float2) -> Self::Output {
-        rhs * self
-    }
-}
-
 impl Neg for Float2 {
     type Output = Self;
 
@@ -128,17 +41,6 @@ impl Sub for Float2 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Float2 {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        }
-    }
-}
-
-impl Sub<&Float2> for Float2 {
-    type Output = Self;
-
-    fn sub(self, rhs: &Self) -> Self::Output {
         Float2 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
