@@ -1,65 +1,8 @@
 use std::fs::File;
 use std::io::prelude::*;
-use std::ops::{Add, Neg, Sub};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct Float3 {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct Float2 {
-    x: f32,
-    y: f32,
-}
-
-impl Add for Float2 {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        }
-    }
-}
-
-impl Neg for Float2 {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        Self {
-            x: -self.x,
-            y: -self.y,
-        }
-    }
-}
-
-impl Sub for Float2 {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Float2 {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        }
-    }
-}
-
-impl Float2 {
-    pub fn dot(self, other: Float2) -> f32 {
-        self.x * other.x + self.y * other.y
-    }
-
-    pub fn perp(self) -> Float2 {
-        Float2 {
-            x: self.y,
-            y: -self.x,
-        }
-    }
-}
+use rand::distr::{Distribution, Uniform};
+use rastr::math::{Float2, Float3};
 
 struct Image {
     width: usize,
@@ -81,40 +24,107 @@ fn point_in_triangle(a: Float2, b: Float2, c: Float2, p: Float2) -> bool {
 }
 
 fn create_test_image() -> Image {
-    const WIDTH: usize = 256;
-    const HEIGHT: usize = 256;
+    const WIDTH: usize = 1024;
+    const HEIGHT: usize = 748;
 
-    const A: Float2 = Float2 {
-        x: 0.2 * (WIDTH as f32),
-        y: 0.2 * (HEIGHT as f32),
-    };
-    const B: Float2 = Float2 {
-        x: 0.7 * (WIDTH as f32),
-        y: 0.4 * (HEIGHT as f32),
-    };
-    const C: Float2 = Float2 {
-        x: 0.4 * (WIDTH as f32),
-        y: 0.8 * (HEIGHT as f32),
-    };
+    const TRIANGLE_COUNT: usize = 250;
 
-    let buf = (0..HEIGHT)
-        .map(|y| {
-            (0..WIDTH).map(move |x| {
-                let p = Float2 {
-                    x: x as f32,
-                    y: y as f32,
-                };
-                let inside = point_in_triangle(A, B, C, p);
+    let center = Float2 {
+        x: WIDTH as f32,
+        y: HEIGHT as f32,
+    } / 2.0;
 
-                Float3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: if inside { 1.0 } else { 0.0 },
+    let mut rng = rand::rng();
+    let (low, high) = (
+        Float2 { x: 0.0, y: 0.0 },
+        Float2 {
+            x: WIDTH as f32,
+            y: HEIGHT as f32,
+        },
+    );
+    let uniform_float2 = Uniform::new(low, high).unwrap();
+    let uniform_color = Uniform::new(
+        Float3 {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
+        Float3 {
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+        },
+    )
+    .unwrap();
+
+    let points = (0..(3 * TRIANGLE_COUNT))
+        .map(|_| center + (uniform_float2.sample(&mut rng) - center) * 0.3)
+        .collect::<Vec<Float2>>();
+
+    let velocities = (0..TRIANGLE_COUNT)
+        .map(|_| (uniform_float2.sample(&mut rng) - center) * 0.5)
+        .flat_map(|v| std::iter::repeat(v).take(3))
+        .collect::<Vec<Float2>>();
+
+    let triangle_colors = (0..TRIANGLE_COUNT)
+        .map(|_| uniform_color.sample(&mut rng))
+        .collect::<Vec<Float3>>();
+
+    let mut buf: Vec<Float3> = Vec::new();
+    buf.resize(
+        WIDTH * HEIGHT,
+        Float3 {
+            x: 0.1,
+            y: 0.1,
+            z: 0.1,
+        },
+    );
+
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            let p = Float2 {
+                x: x as f32,
+                y: y as f32,
+            };
+
+            for (chunk, color) in points.chunks_exact(3).zip(triangle_colors.iter()) {
+                if point_in_triangle(chunk[0], chunk[1], chunk[2], p) {
+                    buf[y * WIDTH + x] = *color;
                 }
-            })
-        })
-        .flatten()
-        .collect();
+            }
+        }
+    }
+
+    // const A: Float2 = Float2 {
+    //     x: 0.2 * (WIDTH as f32),
+    //     y: 0.2 * (HEIGHT as f32),
+    // };
+    // const B: Float2 = Float2 {
+    //     x: 0.7 * (WIDTH as f32),
+    //     y: 0.4 * (HEIGHT as f32),
+    // };
+    // const C: Float2 = Float2 {
+    //     x: 0.4 * (WIDTH as f32),
+    //     y: 0.8 * (HEIGHT as f32),
+    // };
+
+    // let buf = (0..HEIGHT)
+    //     .flat_map(|y| {
+    //         (0..WIDTH).map(move |x| {
+    //             let p = Float2 {
+    //                 x: x as f32,
+    //                 y: y as f32,
+    //             };
+    //             let inside = point_in_triangle(A, B, C, p);
+
+    //             Float3 {
+    //                 x: 0.0,
+    //                 y: 0.0,
+    //                 z: if inside { 1.0 } else { 0.0 },
+    //             }
+    //         })
+    //     })
+    //     .collect();
 
     Image {
         width: WIDTH,
@@ -154,6 +164,7 @@ fn write_image_to_file(image: Image, path: &str) -> std::io::Result<()> {
         .collect::<Vec<u8>>();
 
     file.write_all(&content)?;
+    file.flush()?;
 
     Ok(())
 }
