@@ -1,20 +1,19 @@
 use core::f32;
 
 use crate::math::{Float2, Float3, point_in_triangle};
-use crate::scene::Scene;
+use crate::scene::{Scene, Camera};
 use crate::transform::Transform;
 
 pub struct RenderTarget {
     pub width: usize,
     pub height: usize,
     pub size: Float2,
-    pub fov: f32,
     pub color_buffer: Vec<Float3>,
     pub depth_buffer: Vec<f32>,
 }
 
 impl RenderTarget {
-    pub fn new(width: usize, height: usize, fov: f32) -> Self {
+    pub fn new(width: usize, height: usize) -> Self {
         let mut color_buffer: Vec<Float3> = Vec::new();
         color_buffer.resize(width * height, Float3::zeros());
         let mut depth_buffer: Vec<f32> = Vec::new();
@@ -27,7 +26,6 @@ impl RenderTarget {
                 x: width as f32,
                 y: height as f32,
             },
-            fov,
             color_buffer,
             depth_buffer,
         }
@@ -46,9 +44,9 @@ impl RenderTarget {
                 .zip(model.triangle_colors.iter())
             {
                 let ((a, a_z), (b, b_z), (c, c_z)) = (
-                    world_to_screen(chunk[0], model.transform, self.size, self.fov),
-                    world_to_screen(chunk[1], model.transform, self.size, self.fov),
-                    world_to_screen(chunk[2], model.transform, self.size, self.fov),
+                    world_to_screen(chunk[0], &model.transform, &scene.camera, self.size),
+                    world_to_screen(chunk[1], &model.transform, &scene.camera, self.size),
+                    world_to_screen(chunk[2], &model.transform, &scene.camera, self.size),
                 );
 
                 // Determine chunk bounding box
@@ -99,13 +97,14 @@ impl RenderTarget {
     }
 }
 
-fn world_to_screen(vertex: Float3, transform: Transform, size: Float2, fov: f32) -> (Float2, f32) {
+fn world_to_screen(vertex: Float3, transform: &Transform, camera: &Camera, size: Float2) -> (Float2, f32) {
     let vertex_world = transform.to_world_point(vertex);
+    let vertex_view = camera.transform.to_local_point(vertex_world);
 
-    let screen_height_world: f32 = (fov / 2.0).tan() * 2.0;
-    let pixels_per_world_unit = size.y / screen_height_world / vertex_world.z;
+    let screen_height_world: f32 = (camera.fov / 2.0).tan() * 2.0;
+    let pixels_per_world_unit = size.y / screen_height_world / vertex_view.z;
 
-    let pixel_offset = Float2::new(vertex_world.x, vertex_world.y) * pixels_per_world_unit;
+    let pixel_offset = Float2::new(vertex_view.x, vertex_view.y) * pixels_per_world_unit;
     let vertex_screen = size / 2.0 + pixel_offset;
 
     (vertex_screen, vertex_world.z)

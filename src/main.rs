@@ -20,7 +20,7 @@ fn run(target: &mut RenderTarget, scene: &mut Scene) {
     // Render loop
     while !rl.window_should_close() {
         // Update and rasterize scene
-        scene.update(target, rl.get_frame_time());
+        scene.update(target, &rl);
         target.clear(Float3::new(0.0, 0.0, 0.0));
         target.render(&scene);
 
@@ -37,7 +37,7 @@ fn main() {
     const WIDTH: usize = 640;
     const HEIGHT: usize = 480;
 
-    let mut target = RenderTarget::new(WIDTH, HEIGHT, 60.0_f32.to_radians());
+    let mut target = RenderTarget::new(WIDTH, HEIGHT);
     let mut scene = Scene::new();
 
     run(&mut target, &mut scene)

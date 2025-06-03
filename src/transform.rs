@@ -1,6 +1,5 @@
 use crate::math::Float3;
 
-#[derive(Debug, Clone, Copy)]
 pub struct Transform {
     pub yaw: f32,   // rotation around upwards vector
     pub pitch: f32, // rotation around rightwards vector
@@ -12,12 +11,16 @@ impl Transform {
         Self { yaw, pitch, position }
     }
 
-    pub fn to_world_point(self, p: Float3) -> Float3 {
+    pub fn to_world_point(&self, p: Float3) -> Float3 {
         let (ihat, jhat, khat) = self.get_basis_vectors();
         transform_vector(ihat, jhat, khat, p) + self.position
     }
 
-    pub fn get_basis_vectors(self) -> (Float3, Float3, Float3) {
+    pub fn to_local_point(&self, p: Float3) -> Float3 {
+        p - self.position
+    }
+
+    pub fn get_basis_vectors(&self) -> (Float3, Float3, Float3) {
         // Yaw
         let ihat_yaw = Float3::new(self.yaw.cos(), 0.0, self.yaw.sin());
         let jhat_yaw = Float3::new(0.0, 1.0, 0.0);
