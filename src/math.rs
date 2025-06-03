@@ -25,6 +25,87 @@ impl Float3 {
     }
 }
 
+
+impl Add for Float3 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+        }
+    }
+}
+
+impl Neg for Float3 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+        }
+    }
+}
+
+impl Sub for Float3 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Float3 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+        }
+    }
+}
+
+impl Mul for Float3 {
+    type Output = Self;
+
+    fn mul(self, rhs: Float3) -> Self::Output {
+        Self {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+        }
+    }
+}
+
+impl Mul<f32> for Float3 {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
+        }
+    }
+}
+
+impl Mul<Float3> for f32 {
+    type Output = Float3;
+
+    fn mul(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+            z: self * rhs.z,
+        }
+    }
+}
+
+impl Div<f32> for Float3 {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        self * (1.0 / rhs)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct UniformFloat3 {
     x: UniformFloat<f32>,

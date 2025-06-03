@@ -1,15 +1,17 @@
 use crate::math::{Float2, Float3, point_in_triangle};
 use crate::model::Model;
+use crate::transform::Transform;
 
 pub struct RenderTarget {
     pub width: usize,
     pub height: usize,
     pub size: Float2,
+    pub fov: f32,
     pub color_buffer: Vec<Float3>,
 }
 
 impl RenderTarget {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize, fov: f32) -> Self {
         let mut buf: Vec<Float3> = Vec::new();
         buf.resize(
             width * height,
@@ -27,6 +29,7 @@ impl RenderTarget {
                 x: width as f32,
                 y: height as f32,
             },
+            fov,
             color_buffer: buf,
         }
     }
@@ -42,9 +45,9 @@ impl RenderTarget {
             .zip(model.triangle_colors)
         {
             let (a, b, c) = (
-                world_to_screen(chunk[0], self.size),
-                world_to_screen(chunk[1], self.size),
-                world_to_screen(chunk[2], self.size),
+                world_to_screen(chunk[0], model.transform, self.size, self.fov),
+                world_to_screen(chunk[1], model.transform, self.size, self.fov),
+                world_to_screen(chunk[2], model.transform, self.size, self.fov),
             );
 
             // Determine chunk bounding box
@@ -73,11 +76,13 @@ impl RenderTarget {
     }
 }
 
-fn world_to_screen(p: Float3, size: Float2) -> Float2 {
-    let screen_height_world: f32 = 5.0;
-    let pixels_per_world_unit = size.y / screen_height_world;
+fn world_to_screen(vertex: Float3, transform: Transform, size: Float2, fov: f32) -> Float2 {
+    let vertex_world = transform.to_world_point(vertex);
 
-    let pixel_offset = Float2::new(p.x, p.y) * pixels_per_world_unit;
+    let screen_height_world: f32 = (fov / 2.0).tan() * 2.0;
+    let pixels_per_world_unit = size.y / screen_height_world / vertex_world.z;
+
+    let pixel_offset = Float2::new(vertex_world.x, vertex_world.y) * pixels_per_world_unit;
 
     size / 2.0 + pixel_offset
 }

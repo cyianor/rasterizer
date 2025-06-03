@@ -1,16 +1,23 @@
 use crate::math::Float3;
+use crate::transform::Transform;
 use std::fs::read_to_string;
 
 pub struct Model {
     pub triangle_points: Vec<Float3>,
     pub triangle_colors: Vec<Float3>,
+    pub transform: Transform,
 }
 
 impl Model {
-    pub fn new(triangle_points: Vec<Float3>, triangle_colors: Vec<Float3>) -> Self {
+    pub fn new(
+        triangle_points: Vec<Float3>,
+        triangle_colors: Vec<Float3>,
+        transform: Transform,
+    ) -> Self {
         Self {
             triangle_points,
             triangle_colors,
+            transform,
         }
     }
 }

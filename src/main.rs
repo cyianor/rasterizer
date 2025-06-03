@@ -6,6 +6,7 @@ use rand::distr::{Distribution, Uniform};
 use rastr::math::Float3;
 use rastr::render::RenderTarget;
 use rastr::model::{read_obj_file, Model};
+use rastr::transform::Transform;
 
 fn create_test_image() -> std::io::Result<RenderTarget> {
     const WIDTH: usize = 1024;
@@ -20,9 +21,11 @@ fn create_test_image() -> std::io::Result<RenderTarget> {
         .map(|_| uniform_color.sample(&mut rng))
         .collect::<Vec<Float3>>();
 
-    let model = Model::new(triangle_points, triangle_colors);
+    let transform = Transform::new(0.8, 0.45, Float3::new(0.0, 0.0, 5.0));
 
-    let mut target = RenderTarget::new(WIDTH, HEIGHT);
+    let model = Model::new(triangle_points, triangle_colors, transform);
+
+    let mut target = RenderTarget::new(WIDTH, HEIGHT, 60.0_f32.to_radians());
 
     target.clear(Float3::new(0.1, 0.1, 0.1));
     target.render(model);
