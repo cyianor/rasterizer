@@ -1,87 +1,44 @@
-use std::fs::File;
-use std::io::prelude::*;
-use std::time::Instant;
-
-use rand::distr::{Distribution, Uniform};
-use rastr::math::Float3;
-use rastr::model::{Model, read_obj_file};
+use raylib::prelude::*;
 use rastr::render::RenderTarget;
-use rastr::transform::Transform;
+use rastr::scene::Scene;
+use rastr::math::Float3;
 
-fn create_test_image() -> std::io::Result<RenderTarget> {
-    const WIDTH: usize = 1024;
-    const HEIGHT: usize = 748;
+fn run(target: &mut RenderTarget, scene: Scene) {
+    let (mut rl, thread) = raylib::init()
+        .size(target.width as i32, target.height as i32)
+        .title("Software Rasterizer")
+        .build();
+    let mut texture = rl
+        .load_texture_from_image(
+            &thread,
+            &Image::gen_image_color(target.width as i32, target.height as i32, Color::WHITE),
+        )
+        .unwrap();
+    let mut texture_bytes: Vec<u8> = Vec::new();
+    texture_bytes.resize(target.width * target.height * 4, 0); // RGBA
 
-    let triangle_points = read_obj_file("models/suzanne.obj")?;
+    // Render loop
+    while !rl.window_should_close() {
+        // Update and rasterize scene
+        // scene.update(target, rl.get_frame_time());
+        target.clear(Float3::new(0.0, 0.0, 0.0));
+        target.render(&scene);
 
-    let mut rng = rand::rng();
-    let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
+        // Write rasterizer output to texture and display on window
+        target.color_buffer_to_byte_array(&mut texture_bytes);
+        texture.update_texture(&texture_bytes).unwrap();
 
-    let triangle_colors = (0..triangle_points.len() / 3)
-        .map(|_| uniform_color.sample(&mut rng))
-        .collect::<Vec<Float3>>();
+        let mut d = rl.begin_drawing(&thread);
+        d.draw_texture(&texture, 0, 0, Color::WHITE);
+    }
+}
 
-    let transform = Transform::new(
-        0f32.to_radians(),
-        0f32.to_radians(),
-        Float3::new(0.0, 0.0, 3.0),
-    );
-
-    let model = Model::new(triangle_points, triangle_colors, transform);
+fn main() {
+    const WIDTH: usize = 640;
+    const HEIGHT: usize = 480;
 
     let mut target = RenderTarget::new(WIDTH, HEIGHT, 60.0_f32.to_radians());
+    let scene = Scene::new();
 
-    target.clear(Float3::new(0.1, 0.1, 0.1));
-    target.render(model);
-
-    Ok(target)
-}
-
-fn write_image_to_file(target: RenderTarget, path: &str) -> std::io::Result<()> {
-    let mut file = File::create(path)?;
-
-    let header = [
-        b"P3\n",
-        target.width.to_string().as_bytes(),
-        b" ",
-        target.height.to_string().as_bytes(),
-        b"\n255\n",
-    ]
-    .concat();
-    file.write_all(&header)?;
-
-    let content: Vec<u8> = target
-        .color_buffer
-        .into_iter()
-        .flat_map(|px| {
-            [
-                ((px.x * 255.0_f32).floor() as i32).to_string().as_bytes(),
-                b" ",
-                ((px.y * 255.0_f32).floor() as i32).to_string().as_bytes(),
-                b" ",
-                ((px.z * 255.0_f32).floor() as i32).to_string().as_bytes(),
-                b"\n",
-            ]
-            .concat()
-        })
-        .collect();
-
-    file.write_all(&content)?;
-    file.flush()?;
-
-    Ok(())
-}
-
-fn main() -> std::io::Result<()> {
-    print!("Generate test image... ");
-    let start = Instant::now();
-    let target = create_test_image()?;
-    println!("done {:?}", start.elapsed());
-
-    print!("Save image... ");
-    let start = Instant::now();
-    write_image_to_file(target, "art.ppm")?;
-    println!("done {:?}", start.elapsed());
-
-    Ok(())
+    run(&mut target, scene)
 }
