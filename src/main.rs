@@ -12,42 +12,16 @@ fn create_test_image() -> RenderTarget {
 
     const TRIANGLE_COUNT: usize = 250;
 
-    let center = Float2 {
-        x: WIDTH as f32,
-        y: HEIGHT as f32,
-    } / 2.0;
+    let center = Float2::new(WIDTH as f32, HEIGHT as f32) / 2.0;
 
     let mut rng = rand::rng();
-    let (low, high) = (
-        Float2 { x: 0.0, y: 0.0 },
-        Float2 {
-            x: WIDTH as f32,
-            y: HEIGHT as f32,
-        },
-    );
+    let (low, high) = (Float2::zeros(), Float2::new(WIDTH as f32, HEIGHT as f32));
     let uniform_float2 = Uniform::new(low, high).unwrap();
-    let uniform_color = Uniform::new(
-        Float3 {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        },
-        Float3 {
-            x: 1.0,
-            y: 1.0,
-            z: 1.0,
-        },
-    )
-    .unwrap();
+    let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
 
     let points = (0..(3 * TRIANGLE_COUNT))
         .map(|_| center + (uniform_float2.sample(&mut rng) - center) * 0.3)
         .collect::<Vec<Float2>>();
-
-    // let velocities = (0..TRIANGLE_COUNT)
-    //     .map(|_| (uniform_float2.sample(&mut rng) - center) * 0.5)
-    //     .flat_map(|v| std::iter::repeat(v).take(3))
-    //     .collect::<Vec<Float2>>();
 
     let colors = (0..TRIANGLE_COUNT)
         .map(|_| uniform_color.sample(&mut rng))
@@ -55,11 +29,7 @@ fn create_test_image() -> RenderTarget {
 
     let mut target = RenderTarget::new(WIDTH, HEIGHT);
 
-    target.clear(Float3 {
-        x: 0.1,
-        y: 0.1,
-        z: 0.1,
-    });
+    target.clear(Float3::new(0.1, 0.1, 0.1));
     target.render(points, colors);
 
     target
@@ -78,10 +48,10 @@ fn write_image_to_file(target: RenderTarget, path: &str) -> std::io::Result<()> 
     .concat();
     file.write_all(&header)?;
 
-    let content = target
+    let content: Vec<u8> = target
         .buf
         .into_iter()
-        .map(|px| {
+        .flat_map(|px| {
             [
                 ((px.x * 255.0_f32).floor() as i32).to_string().as_bytes(),
                 b" ",
@@ -92,8 +62,7 @@ fn write_image_to_file(target: RenderTarget, path: &str) -> std::io::Result<()> 
             ]
             .concat()
         })
-        .flatten()
-        .collect::<Vec<u8>>();
+        .collect();
 
     file.write_all(&content)?;
     file.flush()?;

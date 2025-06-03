@@ -11,6 +11,20 @@ pub struct Float3 {
     pub z: f32,
 }
 
+impl Float3 {
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
+        Self {x, y, z}
+    }
+
+    pub fn zeros() -> Self {
+        Self::new(0.0, 0.0, 0.0)
+    }
+
+    pub fn ones() -> Self {
+        Self::new(1.0, 1.0, 1.0)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct UniformFloat3 {
     x: UniformFloat<f32>,
@@ -62,6 +76,20 @@ impl SampleUniform for Float3 {
 pub struct Float2 {
     pub x: f32,
     pub y: f32,
+}
+
+impl Float2 {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self {x, y}
+    }
+
+    pub fn zeros() -> Self {
+        Self::new(0.0, 0.0)
+    }
+
+    pub fn ones() -> Self {
+        Self::new(1.0, 1.0)
+    }
 }
 
 impl Add for Float2 {
