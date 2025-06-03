@@ -1,5 +1,6 @@
 use crate::model::{Model, read_obj_file};
 use crate::math::Float3;
+use crate::render::RenderTarget;
 use crate::transform::Transform;
 
 use rand::distr::{Distribution, Uniform};
@@ -43,7 +44,7 @@ impl Scene {
         let transform = Transform::new(
             0f32.to_radians(),
             0f32.to_radians(),
-            Float3::new(0.0, 0.0, 3.0),
+            Float3::new(0.0, -1.0, 3.0),
         );
 
         scene
@@ -51,5 +52,9 @@ impl Scene {
             .push(Model::new(triangle_points, triangle_colors, transform));
 
         scene
+    }
+
+    pub fn update(&mut self, target: &RenderTarget, delta_time: f32) {
+        self.models[1].transform.pitch += 1.0 * delta_time;
     }
 }

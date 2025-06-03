@@ -3,7 +3,7 @@ use rastr::render::RenderTarget;
 use rastr::scene::Scene;
 use rastr::math::Float3;
 
-fn run(target: &mut RenderTarget, scene: Scene) {
+fn run(target: &mut RenderTarget, scene: &mut Scene) {
     let (mut rl, thread) = raylib::init()
         .size(target.width as i32, target.height as i32)
         .title("Software Rasterizer")
@@ -20,7 +20,7 @@ fn run(target: &mut RenderTarget, scene: Scene) {
     // Render loop
     while !rl.window_should_close() {
         // Update and rasterize scene
-        // scene.update(target, rl.get_frame_time());
+        scene.update(target, rl.get_frame_time());
         target.clear(Float3::new(0.0, 0.0, 0.0));
         target.render(&scene);
 
@@ -38,7 +38,7 @@ fn main() {
     const HEIGHT: usize = 480;
 
     let mut target = RenderTarget::new(WIDTH, HEIGHT, 60.0_f32.to_radians());
-    let scene = Scene::new();
+    let mut scene = Scene::new();
 
-    run(&mut target, scene)
+    run(&mut target, &mut scene)
 }
