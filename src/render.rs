@@ -1,10 +1,11 @@
 use crate::math::{Float2, Float3, point_in_triangle};
+use crate::model::Model;
 
 pub struct RenderTarget {
     pub width: usize,
     pub height: usize,
     pub size: Float2,
-    pub buf: Vec<Float3>,
+    pub color_buffer: Vec<Float3>,
 }
 
 impl RenderTarget {
@@ -26,17 +27,25 @@ impl RenderTarget {
                 x: width as f32,
                 y: height as f32,
             },
-            buf: buf,
+            color_buffer: buf,
         }
     }
 
     pub fn clear(&mut self, color: Float3) {
-        self.buf.fill(color);
+        self.color_buffer.fill(color);
     }
 
-    pub fn render(&mut self, points: Vec<Float2>, colors: Vec<Float3>) {
-        for (chunk, color) in points.chunks_exact(3).zip(colors) {
-            let (a, b, c) = (chunk[0], chunk[1], chunk[2]);
+    pub fn render(&mut self, model: Model) {
+        for (chunk, color) in model
+            .triangle_points
+            .chunks_exact(3)
+            .zip(model.triangle_colors)
+        {
+            let (a, b, c) = (
+                world_to_screen(chunk[0], self.size),
+                world_to_screen(chunk[1], self.size),
+                world_to_screen(chunk[2], self.size),
+            );
 
             // Determine chunk bounding box
             let (min_x, min_y, max_x, max_y) = (
@@ -55,19 +64,20 @@ impl RenderTarget {
 
             for y in bbox_start_y..bbox_end_y {
                 for x in bbox_start_x..bbox_end_x {
-                    if point_in_triangle(
-                        chunk[0],
-                        chunk[1],
-                        chunk[2],
-                        Float2 {
-                            x: x as f32,
-                            y: y as f32,
-                        },
-                    ) {
-                        self.buf[y * self.width + x] = color;
+                    if point_in_triangle(a, b, c, Float2::new(x as f32, y as f32)) {
+                        self.color_buffer[y * self.width + x] = color;
                     }
                 }
             }
         }
     }
+}
+
+fn world_to_screen(p: Float3, size: Float2) -> Float2 {
+    let screen_height_world: f32 = 5.0;
+    let pixels_per_world_unit = size.y / screen_height_world;
+
+    let pixel_offset = Float2::new(p.x, p.y) * pixels_per_world_unit;
+
+    size / 2.0 + pixel_offset
 }
