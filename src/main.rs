@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::prelude::*;
+use std::time::Instant;
 
 use rand::distr::{Distribution, Uniform};
 use rastr::math::{Float2, Float3};
@@ -61,10 +62,10 @@ fn create_test_image() -> Image {
         .map(|_| center + (uniform_float2.sample(&mut rng) - center) * 0.3)
         .collect::<Vec<Float2>>();
 
-    let velocities = (0..TRIANGLE_COUNT)
-        .map(|_| (uniform_float2.sample(&mut rng) - center) * 0.5)
-        .flat_map(|v| std::iter::repeat(v).take(3))
-        .collect::<Vec<Float2>>();
+    // let velocities = (0..TRIANGLE_COUNT)
+    //     .map(|_| (uniform_float2.sample(&mut rng) - center) * 0.5)
+    //     .flat_map(|v| std::iter::repeat(v).take(3))
+    //     .collect::<Vec<Float2>>();
 
     let triangle_colors = (0..TRIANGLE_COUNT)
         .map(|_| uniform_color.sample(&mut rng))
@@ -80,15 +81,33 @@ fn create_test_image() -> Image {
         },
     );
 
-    for y in 0..HEIGHT {
-        for x in 0..WIDTH {
-            let p = Float2 {
-                x: x as f32,
-                y: y as f32,
-            };
+    for (chunk, color) in points.chunks_exact(3).zip(triangle_colors.iter()) {
+        // Determine chunk bounding box
+        let (min_x, min_y, max_x, max_y) = (
+            chunk[0].x.min(chunk[1].x).min(chunk[2].x),
+            chunk[0].y.min(chunk[1].y).min(chunk[2].y),
+            chunk[0].x.max(chunk[1].x).max(chunk[2].x),
+            chunk[0].y.max(chunk[1].y).max(chunk[2].y),
+        );
 
-            for (chunk, color) in points.chunks_exact(3).zip(triangle_colors.iter()) {
-                if point_in_triangle(chunk[0], chunk[1], chunk[2], p) {
+        let (bbox_start_x, bbox_start_y, bbox_end_x, bbox_end_y) = (
+            min_x.floor().clamp(0.0, WIDTH as f32) as usize,
+            min_y.floor().clamp(0.0, HEIGHT as f32) as usize,
+            max_x.ceil().clamp(0.0, WIDTH as f32) as usize,
+            max_y.ceil().clamp(0.0, HEIGHT as f32) as usize,
+        );
+
+        for y in bbox_start_y..bbox_end_y {
+            for x in bbox_start_x..bbox_end_x {
+                if point_in_triangle(
+                    chunk[0],
+                    chunk[1],
+                    chunk[2],
+                    Float2 {
+                        x: x as f32,
+                        y: y as f32,
+                    },
+                ) {
                     buf[y * WIDTH + x] = *color;
                 }
             }
@@ -170,6 +189,15 @@ fn write_image_to_file(image: Image, path: &str) -> std::io::Result<()> {
 }
 
 fn main() -> std::io::Result<()> {
+    print!("Generate test image... ");
+    let start = Instant::now();
     let image = create_test_image();
-    write_image_to_file(image, "art.ppm")
+    println!("done {:?}", start.elapsed());
+
+    print!("Save image... ");
+    let start = Instant::now();
+    write_image_to_file(image, "art.ppm")?;
+    println!("done {:?}", start.elapsed());
+
+    Ok(())
 }
