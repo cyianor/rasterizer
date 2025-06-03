@@ -4,24 +4,28 @@ use std::time::Instant;
 
 use rand::distr::{Distribution, Uniform};
 use rastr::math::Float3;
+use rastr::model::{Model, read_obj_file};
 use rastr::render::RenderTarget;
-use rastr::model::{read_obj_file, Model};
 use rastr::transform::Transform;
 
 fn create_test_image() -> std::io::Result<RenderTarget> {
     const WIDTH: usize = 1024;
     const HEIGHT: usize = 748;
 
-    let triangle_points = read_obj_file("models/cube.obj")?;
-    
+    let triangle_points = read_obj_file("models/suzanne.obj")?;
+
     let mut rng = rand::rng();
     let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
 
-    let triangle_colors = (0..triangle_points.len()/3)
+    let triangle_colors = (0..triangle_points.len() / 3)
         .map(|_| uniform_color.sample(&mut rng))
         .collect::<Vec<Float3>>();
 
-    let transform = Transform::new(0.8, 0.45, Float3::new(0.0, 0.0, 5.0));
+    let transform = Transform::new(
+        0f32.to_radians(),
+        0f32.to_radians(),
+        Float3::new(0.0, 0.0, 3.0),
+    );
 
     let model = Model::new(triangle_points, triangle_colors, transform);
 

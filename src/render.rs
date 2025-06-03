@@ -1,3 +1,5 @@
+use core::f32;
+
 use crate::math::{Float2, Float3, point_in_triangle};
 use crate::model::Model;
 use crate::transform::Transform;
@@ -8,19 +10,15 @@ pub struct RenderTarget {
     pub size: Float2,
     pub fov: f32,
     pub color_buffer: Vec<Float3>,
+    pub depth_buffer: Vec<f32>,
 }
 
 impl RenderTarget {
     pub fn new(width: usize, height: usize, fov: f32) -> Self {
-        let mut buf: Vec<Float3> = Vec::new();
-        buf.resize(
-            width * height,
-            Float3 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
-        );
+        let mut color_buffer: Vec<Float3> = Vec::new();
+        color_buffer.resize(width * height, Float3::zeros());
+        let mut depth_buffer: Vec<f32> = Vec::new();
+        depth_buffer.resize(width * height, 0.0);
 
         Self {
             width,
@@ -30,12 +28,14 @@ impl RenderTarget {
                 y: height as f32,
             },
             fov,
-            color_buffer: buf,
+            color_buffer,
+            depth_buffer,
         }
     }
 
     pub fn clear(&mut self, color: Float3) {
         self.color_buffer.fill(color);
+        self.depth_buffer.fill(f32::INFINITY);
     }
 
     pub fn render(&mut self, model: Model) {
@@ -44,7 +44,7 @@ impl RenderTarget {
             .chunks_exact(3)
             .zip(model.triangle_colors)
         {
-            let (a, b, c) = (
+            let ((a, a_z), (b, b_z), (c, c_z)) = (
                 world_to_screen(chunk[0], model.transform, self.size, self.fov),
                 world_to_screen(chunk[1], model.transform, self.size, self.fov),
                 world_to_screen(chunk[2], model.transform, self.size, self.fov),
@@ -67,8 +67,17 @@ impl RenderTarget {
 
             for y in bbox_start_y..bbox_end_y {
                 for x in bbox_start_x..bbox_end_x {
-                    if point_in_triangle(a, b, c, Float2::new(x as f32, y as f32)) {
+                    if let Some(weights) =
+                        point_in_triangle(a, b, c, Float2::new(x as f32, y as f32))
+                    {
+                        let depths = Float3::new(a_z, b_z, c_z);
+                        let depth = depths.dot(weights);
+                        if depth > self.depth_buffer[y * self.width + x] {
+                            continue;
+                        }
+
                         self.color_buffer[y * self.width + x] = color;
+                        self.depth_buffer[y * self.width + x] = depth;
                     }
                 }
             }
@@ -76,13 +85,14 @@ impl RenderTarget {
     }
 }
 
-fn world_to_screen(vertex: Float3, transform: Transform, size: Float2, fov: f32) -> Float2 {
+fn world_to_screen(vertex: Float3, transform: Transform, size: Float2, fov: f32) -> (Float2, f32) {
     let vertex_world = transform.to_world_point(vertex);
 
     let screen_height_world: f32 = (fov / 2.0).tan() * 2.0;
     let pixels_per_world_unit = size.y / screen_height_world / vertex_world.z;
 
     let pixel_offset = Float2::new(vertex_world.x, vertex_world.y) * pixels_per_world_unit;
+    let vertex_screen = size / 2.0 + pixel_offset;
 
-    size / 2.0 + pixel_offset
+    (vertex_screen, vertex_world.z)
 }
