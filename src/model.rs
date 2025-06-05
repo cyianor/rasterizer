@@ -41,6 +41,7 @@ pub fn read_obj_file(path: &str) -> std::io::Result<Vec<Float3>> {
                 // Face indices are always positive integers starting from 1
                 let point_index = index_group
                     .split("/")
+                    .take(1)
                     .map(|v| v.parse::<usize>().unwrap())
                     .collect::<Vec<usize>>()[0]
                     - 1;
