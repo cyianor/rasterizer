@@ -75,7 +75,7 @@ impl RenderTarget {
                                 point_in_triangle(a, b, c, Float2::new(x as f32, y as f32))
                             {
                                 let depths = (1.0 + Float3::new(a_z, b_z, c_z)) * 0.5;
-                                let depth = 1.0 / (1.0 / depths).dot(weights);
+                                let depth = depths.dot(weights);
                                 if depth > self.depth_buffer[y * self.width + x] {
                                     continue;
                                 }
@@ -148,10 +148,10 @@ fn to_screen(
             - 2.0 * camera.far * camera.near / (camera.far - camera.near),
     ) / vertex_view.z;
 
-    // Non-invertible projection onto screen
+    // Non-invertible projection onto screen space
     let vertex_screen = Float2::new(
-        ((vertex_persp.x + 1.0) * 0.5 * size.x).clamp(0.0, size.x - 1.0),
-        ((1.0 - (vertex_persp.y + 1.0) * 0.5) * size.y).clamp(0.0, size.y - 1.0),
+        (vertex_persp.x + 1.0) * 0.5 * size.x,
+        (1.0 - (vertex_persp.y + 1.0) * 0.5) * size.y,
     );
 
     Some((vertex_screen, vertex_persp.z))

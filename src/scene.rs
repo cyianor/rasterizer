@@ -19,12 +19,12 @@ impl Scene {
     pub fn new() -> Self {
         let mut scene = Self {
             camera: Camera::new(
-                Float3::new(0.0, 1.0, -10.0),
+                Float3::new(0.0, 2.0, -20.0),
                 Float3::zeros(),
                 Float3::new(0.0, 1.0, 0.0),
                 60f32.to_radians(),
-                -1.0,
-                -50.0,
+                -0.1,
+                -100.0,
             ),
             models: Vec::new(),
             total_frame_time: 0.0,
@@ -42,7 +42,7 @@ impl Scene {
             .map(|_| uniform_color.sample(&mut rng))
             .collect::<Vec<Float3>>();
 
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 0.0, 0.0), 1.0);
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), 1.0);
 
         scene
             .models
@@ -57,7 +57,22 @@ impl Scene {
             .map(|_| uniform_color.sample(&mut rng))
             .collect::<Vec<Float3>>();
 
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), 5.0);
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 2.0, 0.0), 5.0);
+
+        scene
+            .models
+            .push(Model::new(triangle_points, triangle_colors, transform));
+
+         let triangle_points = read_obj_file("models/floor_simple.obj").unwrap();
+
+        let mut rng = rand::rng();
+        let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
+
+        let triangle_colors = (0..triangle_points.len() / 3)
+            .map(|_| uniform_color.sample(&mut rng))
+            .collect::<Vec<Float3>>();
+
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), 1.0);
 
         scene
             .models
@@ -106,6 +121,6 @@ impl Scene {
         }
 
         cam_transform.position += move_delta.normalized() * CAM_SPEED * delta_time;
-        cam_transform.position.y = 1.0;
+        cam_transform.position.y = 2.0;
     }
 }
