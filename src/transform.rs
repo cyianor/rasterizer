@@ -6,11 +6,11 @@ pub struct Transform {
     pub pitch: f32, // rotation around rightwards vector
     pub roll: f32,  // rotation around forwards vector
     pub position: Float3,
-    pub scale: f32,
+    pub scale: Float3,
 }
 
 impl Transform {
-    pub fn new(yaw: f32, pitch: f32, roll: f32, position: Float3, scale: f32) -> Self {
+    pub fn new(yaw: f32, pitch: f32, roll: f32, position: Float3, scale: Float3) -> Self {
         Self {
             yaw,
             pitch,

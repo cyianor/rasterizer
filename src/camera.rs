@@ -21,7 +21,7 @@ impl Camera {
 
         Self {
             fov,
-            transform: Transform::new(yaw, pitch, roll, position, 1.0),
+            transform: Transform::new(yaw, pitch, roll, position, Float3::ones()),
             near,
             far,
         }

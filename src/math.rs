@@ -226,7 +226,7 @@ impl Float3 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn cross(self, other: Float3) -> Float3 {
+    pub fn cross(self, other: Float3) -> Self {
         Self {
             x: self.y * other.z - self.z * other.y,
             y: self.z * other.x - self.x * other.z,
@@ -245,6 +245,10 @@ impl Float3 {
         } else {
             self / self.norm()
         }
+    }
+
+    pub fn lerp(self, other: Float3, t: f32) -> Self {
+        self + t * (other - self)
     }
 }
 
@@ -437,6 +441,18 @@ impl Div<f32> for &Float3 {
 
     fn div(self, rhs: f32) -> Self::Output {
         self * (1.0 / rhs)
+    }
+}
+
+impl Div for Float3 {
+    type Output = Float3;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+        }
     }
 }
 

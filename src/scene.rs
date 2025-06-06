@@ -23,7 +23,7 @@ impl Scene {
                 Float3::zeros(),
                 Float3::new(0.0, 1.0, 0.0),
                 60f32.to_radians(),
-                -0.1,
+                -1.0,
                 -100.0,
             ),
             models: Vec::new(),
@@ -42,7 +42,7 @@ impl Scene {
             .map(|_| uniform_color.sample(&mut rng))
             .collect::<Vec<Float3>>();
 
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), 1.0);
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), Float3::ones());
 
         scene
             .models
@@ -57,13 +57,13 @@ impl Scene {
             .map(|_| uniform_color.sample(&mut rng))
             .collect::<Vec<Float3>>();
 
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 2.0, 0.0), 5.0);
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 2.0, 0.0), Float3::ones() * 5.0);
 
         scene
             .models
             .push(Model::new(triangle_points, triangle_colors, transform));
 
-         let triangle_points = read_obj_file("models/floor_simple.obj").unwrap();
+        let triangle_points = read_obj_file("models/floor_simple.obj").unwrap();
 
         let mut rng = rand::rng();
         let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
@@ -72,7 +72,7 @@ impl Scene {
             .map(|_| uniform_color.sample(&mut rng))
             .collect::<Vec<Float3>>();
 
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), 1.0);
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), Float3::ones());
 
         scene
             .models
