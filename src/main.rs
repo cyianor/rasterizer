@@ -44,11 +44,20 @@ fn run(target: &mut RenderTarget, scene: &mut Scene) {
         d.draw_texture(&texture, 0, 0, Color::WHITE);
         d.draw_text(
             &format!("FPS: {}", scene.last_frame_counter),
-            0, 0, 12, Color::WHITE
+            0,
+            0,
+            12,
+            Color::WHITE,
         );
         d.draw_text(
-            &format!("Average Frame Time: {:.2}", scene.average_frame_time * 1000.0),
-            0, 12, 12, Color::WHITE
+            &format!(
+                "Average Frame Time: {:.2}",
+                scene.average_frame_time * 1000.0
+            ),
+            0,
+            12,
+            12,
+            Color::WHITE,
         );
     }
 }

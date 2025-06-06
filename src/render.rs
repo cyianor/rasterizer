@@ -49,7 +49,8 @@ impl RenderTarget {
                     to_screen(chunk[1], &model.transform, &scene.camera, self.size),
                     to_screen(chunk[2], &model.transform, &scene.camera, self.size),
                 ) {
-                    if a_z <= 0.0 || b_z <= 0.0 || c_z <= 0.0 {
+                    if a_z < -1.0 || a_z > 1.0 || b_z < -1.0 || b_z > 1.0 || c_z < -1.0 || c_z > 1.0
+                    {
                         continue;
                     }
 
@@ -73,7 +74,7 @@ impl RenderTarget {
                             if let Some(weights) =
                                 point_in_triangle(a, b, c, Float2::new(x as f32, y as f32))
                             {
-                                let depths = Float3::new(a_z, b_z, c_z);
+                                let depths = (1.0 + Float3::new(a_z, b_z, c_z)) * 0.5;
                                 let depth = 1.0 / (1.0 / depths).dot(weights);
                                 if depth > self.depth_buffer[y * self.width + x] {
                                     continue;
@@ -121,33 +122,33 @@ fn to_screen(
     camera: &Camera,
     size: Float2,
 ) -> Option<(Float2, f32)> {
+    // From model space to world space
     let vertex_world = transform.to_world_point(vertex);
+    // From world space to view space
     let vertex_view = camera.transform.to_local_point(vertex_world);
 
+    // Discard points behind camera.
     if vertex_view.z >= 0.0 {
         return None;
     }
 
     // Perspective projection
-    let top = camera.near * (camera.fov / 2.0).tan();
+    // From view space to normalized device coordinates
+    let top = -camera.near * (camera.fov / 2.0).tan();
     let bottom = -top;
     let right = top * size.x / size.y;
     let left = -right;
 
     let vertex_persp = Float3::new(
         2.0 * camera.near / (right - left) * vertex_view.x
-            - camera.near * (right + left) / (right - left),
+            - vertex_view.z * (right + left) / (right - left),
         2.0 * camera.near / (top - bottom) * vertex_view.y
-            - camera.near * (top + bottom) / (top - bottom),
-        -(camera.far + camera.near) / (camera.far - camera.near) * vertex_view.z
+            - vertex_view.z * (top + bottom) / (top - bottom),
+        (camera.far + camera.near) / (camera.far - camera.near) * vertex_view.z
             - 2.0 * camera.far * camera.near / (camera.far - camera.near),
-    ) / (-vertex_view.z);
+    ) / vertex_view.z;
 
-    if (vertex_persp.x > 1.0 || vertex_persp.x < -1.0) && (vertex_persp.y > 1.0 || vertex_persp.y < -1.0)
-    {
-        return None;
-    }
-
+    // Non-invertible projection onto screen
     let vertex_screen = Float2::new(
         ((vertex_persp.x + 1.0) * 0.5 * size.x).clamp(0.0, size.x - 1.0),
         ((1.0 - (vertex_persp.y + 1.0) * 0.5) * size.y).clamp(0.0, size.y - 1.0),

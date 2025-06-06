@@ -13,21 +13,11 @@ impl Camera {
         let cam_fwd = (position - target).normalized();
         let cam_right = up.cross(cam_fwd).normalized();
         let cam_up = cam_fwd.cross(cam_right);
-        println!("cam_right: {:?}, cam_up: {:?}, cam_fwd: {:?}", cam_right, cam_up, cam_fwd);
 
         // rows of rotation matrix cam_right, cam_up, cam_fwd
         let yaw = (-cam_fwd.x).atan2(cam_fwd.z);
         let pitch = cam_fwd.y.asin();
         let roll = (-cam_right.y).atan2(cam_up.y);
-        // let yaw = (-cam_right.z).atan2(cam_fwd.z);
-        // let pitch = cam_up.z.asin();
-        // let roll = (-cam_up.x).atan2(cam_up.y);
-        
-        println!("yaw: {yaw}, pitch: {pitch}, roll: {roll}");
-
-        let transform = Transform::new(yaw, pitch, roll, position, 1.0);
-        let (ihat, jhat, khat) = transform.get_basis_vectors();        
-        println!("ihat: {:?}, jhat: {:?}, khat: {:?}", ihat, jhat, khat);
 
         Self {
             fov,

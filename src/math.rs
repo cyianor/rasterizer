@@ -260,6 +260,30 @@ impl Add for Float3 {
     }
 }
 
+impl Add<f32> for Float3 {
+    type Output = Self;
+
+    fn add(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x + rhs,
+            y: self.y + rhs,
+            z: self.z + rhs,
+        }
+    }
+}
+
+impl Add<Float3> for f32 {
+    type Output = Float3;
+
+    fn add(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: rhs.x + self,
+            y: rhs.y + self,
+            z: rhs.z + self,
+        }
+    }
+}
+
 impl AddAssign for Float3 {
     fn add_assign(&mut self, rhs: Self) {
         *self = Self {
@@ -290,6 +314,18 @@ impl Sub for Float3 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
             z: self.z - rhs.z,
+        }
+    }
+}
+
+impl Sub<f32> for Float3 {
+    type Output = Self;
+
+    fn sub(self, rhs: f32) -> Self::Output {
+        Float3 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
         }
     }
 }
