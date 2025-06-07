@@ -2,6 +2,7 @@ use core::f32;
 
 use crate::camera::Camera;
 use crate::math::{Float2, Float3, point_in_triangle};
+use crate::model::Model;
 use crate::scene::Scene;
 use crate::transform::Transform;
 
@@ -51,123 +52,10 @@ impl RenderTarget {
 
     pub fn render(&mut self, scene: &Scene) {
         for model in scene.models.iter() {
-            let mut rasterizer_points: Vec<RasterizerPoint> = Vec::new();
-            let mut rasterize_colors: Vec<Float3> = Vec::new();
-            for (chunk, color) in model
-                .triangle_points
-                .chunks_exact(3)
-                .zip(model.triangle_colors.iter())
-            {
-                let vertices_view = [
-                    world_to_view(model_to_world(chunk[0], &model.transform), &scene.camera),
-                    world_to_view(model_to_world(chunk[1], &model.transform), &scene.camera),
-                    world_to_view(model_to_world(chunk[2], &model.transform), &scene.camera),
-                ];
+            let (rasterizer_points, rasterizer_colors) =
+                subdivide_partial_oob_triangles(model, &scene.camera, self.size);
 
-                let clip_0 = vertices_view[0].z >= scene.camera.near;
-                let clip_1 = vertices_view[1].z >= scene.camera.near;
-                let clip_2 = vertices_view[2].z >= scene.camera.near;
-                let clip_count = clip_0 as usize + clip_1 as usize + clip_2 as usize;
-
-                match clip_count {
-                    0 => {
-                        let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                            view_to_screen(vertices_view[0], &scene.camera, self.size),
-                            view_to_screen(vertices_view[1], &scene.camera, self.size),
-                            view_to_screen(vertices_view[2], &scene.camera, self.size),
-                        );
-                        rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
-                        rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
-                        rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
-                        rasterize_colors.push(*color);
-                    }
-                    1 => {
-                        // Determine which vertex will be clipped and which two will remain.
-                        let idx_clip = if clip_0 {
-                            0
-                        } else {
-                            if clip_1 { 1 } else { 2 }
-                        };
-                        let idx_next = (idx_clip + 1) % 3;
-                        let idx_prev = (idx_clip - 1 + 3) % 3;
-                        let vertex_clip = vertices_view[idx_clip];
-                        let vertex_a = vertices_view[idx_next];
-                        let vertex_b = vertices_view[idx_prev];
-
-                        // Fraction along triangle edge at which the depth is equal to the clip distance
-                        let frac_a =
-                            (scene.camera.near - vertex_clip.z) / (vertex_a.z - vertex_clip.z);
-                        let frac_b =
-                            (scene.camera.near - vertex_clip.z) / (vertex_b.z - vertex_clip.z);
-
-                        // New triangle points in view space
-                        let clip_vertex_along_edge_a = vertex_clip.lerp(vertex_a, frac_a);
-                        let clip_vertex_along_edge_b = vertex_clip.lerp(vertex_b, frac_b);
-
-                        // First new triangle
-                        let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                            view_to_screen(clip_vertex_along_edge_b, &scene.camera, self.size),
-                            view_to_screen(clip_vertex_along_edge_a, &scene.camera, self.size),
-                            view_to_screen(vertex_b, &scene.camera, self.size),
-                        );
-                        rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
-                        rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
-                        rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
-                        // rasterize_colors.push(*color);
-                        rasterize_colors.push(Float3::new(1.0, 0.0, 0.0));
-
-                        // Second new triangle
-                        let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                            view_to_screen(clip_vertex_along_edge_a, &scene.camera, self.size),
-                            view_to_screen(vertex_a, &scene.camera, self.size),
-                            view_to_screen(vertex_b, &scene.camera, self.size),
-                        );
-                        rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
-                        rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
-                        rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
-                        // rasterize_colors.push(*color);
-                        rasterize_colors.push(Float3::new(0.0, 1.0, 0.0));
-                    }
-                    2 => {
-                        // Figure out which point remains and the two that will be clipped
-                        let idx_non_clip = if !clip_0 {
-                            0
-                        } else {
-                            if !clip_1 { 1 } else { 2 }
-                        };
-                        let idx_next = (idx_non_clip + 1) % 3;
-                        let idx_prev = (idx_non_clip - 1 + 3) % 3;
-                        let vertex_non_clip = vertices_view[idx_non_clip];
-                        let vertex_a = vertices_view[idx_next];
-                        let vertex_b = vertices_view[idx_prev];
-
-                        // Fraction along triangle edge at which the depth is equal to the clip distance
-                        let frac_a = (scene.camera.near - vertex_non_clip.z)
-                            / (vertex_a.z - vertex_non_clip.z);
-                        let frac_b = (scene.camera.near - vertex_non_clip.z)
-                            / (vertex_b.z - vertex_non_clip.z);
-
-                        // New triangle points in view space
-                        let clip_vertex_along_edge_a = vertex_non_clip.lerp(vertex_a, frac_a);
-                        let clip_vertex_along_edge_b = vertex_non_clip.lerp(vertex_b, frac_b);
-
-                        // New triangle
-                        let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                            view_to_screen(clip_vertex_along_edge_b, &scene.camera, self.size),
-                            view_to_screen(vertex_non_clip, &scene.camera, self.size),
-                            view_to_screen(clip_vertex_along_edge_a, &scene.camera, self.size),
-                        );
-                        rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
-                        rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
-                        rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
-                        // rasterize_colors.push(*color);
-                        rasterize_colors.push(Float3::new(0.0, 0.0, 1.0));
-                    }
-                    _ => continue,
-                }
-            }
-
-            for (chunk, color) in rasterizer_points.chunks_exact(3).zip(rasterize_colors) {
+            for (chunk, color) in rasterizer_points.chunks_exact(3).zip(rasterizer_colors) {
                 let (
                     RasterizerPoint {
                         screen_pos: a,
@@ -274,4 +162,124 @@ fn view_to_screen(vertex: Float3, camera: &Camera, size: Float2) -> (Float2, f32
     );
 
     (vertex_screen, vertex_persp.z)
+}
+
+fn subdivide_partial_oob_triangles(
+    model: &Model,
+    camera: &Camera,
+    size: Float2,
+) -> (Vec<RasterizerPoint>, Vec<Float3>) {
+    let mut rasterizer_points: Vec<RasterizerPoint> = Vec::new();
+    let mut rasterizer_colors: Vec<Float3> = Vec::new();
+    for (chunk, color) in model
+        .triangle_points
+        .chunks_exact(3)
+        .zip(model.triangle_colors.iter())
+    {
+        let vertices_view = [
+            world_to_view(model_to_world(chunk[0], &model.transform), &camera),
+            world_to_view(model_to_world(chunk[1], &model.transform), &camera),
+            world_to_view(model_to_world(chunk[2], &model.transform), &camera),
+        ];
+
+        let clip_0 = vertices_view[0].z >= camera.near;
+        let clip_1 = vertices_view[1].z >= camera.near;
+        let clip_2 = vertices_view[2].z >= camera.near;
+        let clip_count = clip_0 as usize + clip_1 as usize + clip_2 as usize;
+
+        match clip_count {
+            0 => {
+                let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
+                    view_to_screen(vertices_view[0], &camera, size),
+                    view_to_screen(vertices_view[1], &camera, size),
+                    view_to_screen(vertices_view[2], &camera, size),
+                );
+                rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
+                rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
+                rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
+                rasterizer_colors.push(*color);
+            }
+            1 => {
+                // Determine which vertex will be clipped and which two will remain.
+                let idx_clip = if clip_0 {
+                    0
+                } else {
+                    if clip_1 { 1 } else { 2 }
+                };
+                let idx_next = (idx_clip + 1) % 3;
+                let idx_prev = (idx_clip - 1 + 3) % 3;
+                let vertex_clip = vertices_view[idx_clip];
+                let vertex_a = vertices_view[idx_next];
+                let vertex_b = vertices_view[idx_prev];
+
+                // Fraction along triangle edge at which the depth is equal to the clip distance
+                let frac_a = (camera.near - vertex_clip.z) / (vertex_a.z - vertex_clip.z);
+                let frac_b = (camera.near - vertex_clip.z) / (vertex_b.z - vertex_clip.z);
+
+                // New triangle points in view space
+                let clip_vertex_along_edge_a = vertex_clip.lerp(vertex_a, frac_a);
+                let clip_vertex_along_edge_b = vertex_clip.lerp(vertex_b, frac_b);
+
+                // First new triangle
+                let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
+                    view_to_screen(clip_vertex_along_edge_b, &camera, size),
+                    view_to_screen(clip_vertex_along_edge_a, &camera, size),
+                    view_to_screen(vertex_b, &camera, size),
+                );
+                rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
+                rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
+                rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
+                rasterizer_colors.push(*color);
+                // rasterizer_colors.push(Float3::new(1.0, 0.0, 0.0));
+
+                // Second new triangle
+                let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
+                    view_to_screen(clip_vertex_along_edge_a, &camera, size),
+                    view_to_screen(vertex_a, &camera, size),
+                    view_to_screen(vertex_b, &camera, size),
+                );
+                rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
+                rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
+                rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
+                rasterizer_colors.push(*color);
+                // rasterizer_colors.push(Float3::new(0.0, 1.0, 0.0));
+            }
+            2 => {
+                // Figure out which point remains and the two that will be clipped
+                let idx_non_clip = if !clip_0 {
+                    0
+                } else {
+                    if !clip_1 { 1 } else { 2 }
+                };
+                let idx_next = (idx_non_clip + 1) % 3;
+                let idx_prev = (idx_non_clip - 1 + 3) % 3;
+                let vertex_non_clip = vertices_view[idx_non_clip];
+                let vertex_a = vertices_view[idx_next];
+                let vertex_b = vertices_view[idx_prev];
+
+                // Fraction along triangle edge at which the depth is equal to the clip distance
+                let frac_a = (camera.near - vertex_non_clip.z) / (vertex_a.z - vertex_non_clip.z);
+                let frac_b = (camera.near - vertex_non_clip.z) / (vertex_b.z - vertex_non_clip.z);
+
+                // New triangle points in view space
+                let clip_vertex_along_edge_a = vertex_non_clip.lerp(vertex_a, frac_a);
+                let clip_vertex_along_edge_b = vertex_non_clip.lerp(vertex_b, frac_b);
+
+                // New triangle
+                let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
+                    view_to_screen(clip_vertex_along_edge_b, &camera, size),
+                    view_to_screen(vertex_non_clip, &camera, size),
+                    view_to_screen(clip_vertex_along_edge_a, &camera, size),
+                );
+                rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
+                rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
+                rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
+                rasterizer_colors.push(*color);
+                // rasterizer_colors.push(Float3::new(0.0, 0.0, 1.0));
+            }
+            _ => continue,
+        }
+    }
+
+    (rasterizer_points, rasterizer_colors)
 }
