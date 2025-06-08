@@ -16,13 +16,14 @@ pub struct Scene {
 }
 
 impl Scene {
-    pub fn new() -> Self {
+    pub fn new(aspect_ratio: f32) -> Self {
         let mut scene = Self {
             camera: Camera::new(
                 Float3::new(0.0, 2.0, -20.0),
                 Float3::zeros(),
                 Float3::new(0.0, 1.0, 0.0),
                 60f32.to_radians(),
+                aspect_ratio,
                 -1.0,
                 -100.0,
             ),
@@ -33,50 +34,56 @@ impl Scene {
             last_frame_counter: 0,
         };
 
-        let triangle_points = read_obj_file("models/cube.obj").unwrap();
+        println!("{:?}", scene.camera.transform.get_basis_vectors());
+        println!("{:?}", scene.camera.transform.get_rotation());
+
+        println!("{:?}", scene.camera.transform.get_inverse_basis_vectors());
+        println!("{:?}", scene.camera.transform.get_inverse_rotation());
+
+        let (vertices, texture_coords, normals) = read_obj_file("models/cube.obj", true, true).unwrap();
 
         let mut rng = rand::rng();
         let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
 
-        let triangle_colors = (0..triangle_points.len() / 3)
+        let triangle_colors = (0..vertices.len() / 3)
             .map(|_| uniform_color.sample(&mut rng))
-            .collect::<Vec<Float3>>();
+            .collect::<Vec<_>>();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), Float3::ones());
 
         scene
             .models
-            .push(Model::new(triangle_points, triangle_colors, transform));
+            .push(Model::new(vertices, triangle_colors, texture_coords, normals, transform));
 
-        let triangle_points = read_obj_file("models/Dragon_8K.obj").unwrap();
+        let (vertices, texture_coords, normals) = read_obj_file("models/Dragon_8K.obj", false, true).unwrap();
 
         let mut rng = rand::rng();
         let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
 
-        let triangle_colors = (0..triangle_points.len() / 3)
+        let triangle_colors = (0..vertices.len() / 3)
             .map(|_| uniform_color.sample(&mut rng))
-            .collect::<Vec<Float3>>();
+            .collect::<Vec<_>>();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 2.0, 0.0), Float3::ones() * 5.0);
 
         scene
             .models
-            .push(Model::new(triangle_points, triangle_colors, transform));
+            .push(Model::new(vertices, triangle_colors, texture_coords, normals, transform));
 
-        let triangle_points = read_obj_file("models/floor_simple.obj").unwrap();
+        let (vertices, texture_coords, normals) = read_obj_file("models/floor.obj", true, true).unwrap();
 
         let mut rng = rand::rng();
         let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
 
-        let triangle_colors = (0..triangle_points.len() / 3)
+        let triangle_colors = (0..vertices.len() / 3)
             .map(|_| uniform_color.sample(&mut rng))
-            .collect::<Vec<Float3>>();
+            .collect::<Vec<_>>();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), Float3::ones());
 
         scene
             .models
-            .push(Model::new(triangle_points, triangle_colors, transform));
+            .push(Model::new(vertices, triangle_colors, texture_coords, normals, transform));
 
         scene
     }

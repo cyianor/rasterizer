@@ -67,7 +67,7 @@ fn main() {
     const HEIGHT: usize = 768;
 
     let mut target = RenderTarget::new(WIDTH, HEIGHT);
-    let mut scene = Scene::new();
+    let mut scene = Scene::new(WIDTH as f32 / HEIGHT as f32);
 
     run(&mut target, &mut scene)
 }

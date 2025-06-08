@@ -2,7 +2,7 @@ use rand::{
     Rng,
     distr::uniform::{SampleUniform, UniformFloat, UniformSampler},
 };
-use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Float2 {
@@ -40,6 +40,10 @@ impl Float2 {
             x: self.y,
             y: -self.x,
         }
+    }
+
+    pub fn lerp(self, other: Float2, t: f32) -> Self {
+        self + t * (other - self)
     }
 }
 
@@ -568,6 +572,10 @@ impl Float4 {
         Self::new(0.0, 0.0, 0.0, 1.0)
     }
 
+    pub fn xyz(self) -> Float3 {
+        Float3::new(self.x, self.y, self.z)
+    }
+
     pub fn dot(self, other: Float4) -> f32 {
         self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
     }
@@ -583,6 +591,10 @@ impl Float4 {
         } else {
             self / self.norm()
         }
+    }
+
+    pub fn lerp(self, other: Float4, t: f32) -> Self {
+        self + t * (other - self)
     }
 }
 
@@ -601,12 +613,10 @@ impl Add for Float4 {
 
 impl AddAssign for Float4 {
     fn add_assign(&mut self, rhs: Self) {
-        *self = Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-            z: self.z + rhs.z,
-            w: self.w + rhs.w,
-        };
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
+        self.w += rhs.w;
     }
 }
 
@@ -638,12 +648,10 @@ impl Sub for Float4 {
 
 impl SubAssign for Float4 {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = Self {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-            z: self.z - rhs.z,
-            w: self.w - rhs.w,
-        };
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+        self.z -= rhs.z;
+        self.w -= rhs.w;
     }
 }
 
@@ -741,6 +749,28 @@ impl Div<f32> for &Float4 {
     }
 }
 
+impl Div for Float4 {
+    type Output = Float4;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Float4 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+            w: self.w / rhs.w,
+        }
+    }
+}
+
+impl DivAssign<f32> for Float4 {
+    fn div_assign(&mut self, rhs: f32) {
+        self.x /= rhs;
+        self.y /= rhs;
+        self.z /= rhs;
+        self.w /= rhs;
+    }
+}
+
 #[derive(Debug)]
 pub struct Float4x4 {
     pub r1: Float4,
@@ -826,6 +856,15 @@ impl Float4x4 {
         )
     }
 
+    pub fn transpose(&self) -> Self {
+        Self::new(
+            Float4::new(self.r1.x, self.r2.x, self.r3.x, self.r4.x),
+            Float4::new(self.r1.y, self.r2.y, self.r3.y, self.r4.y),
+            Float4::new(self.r1.z, self.r2.z, self.r3.z, self.r4.z),
+            Float4::new(self.r1.w, self.r2.w, self.r3.w, self.r4.w),
+        )
+    }
+
     pub fn transform(
         right: Float3,
         up: Float3,
@@ -870,6 +909,36 @@ impl Float4x4 {
             ),
             r4: Float4::unit_w(),
         }
+    }
+
+    pub fn rotate_scale_translate(
+        yaw: f32,
+        pitch: f32,
+        roll: f32,
+        translation: Float3,
+        scale: Float3,
+    ) -> Float4x4 {
+        Float4x4::new(
+            Float4::new(
+                scale.x * roll.cos() * yaw.cos() - roll.sin() * pitch.sin() * yaw.sin(),
+                -roll.sin() * pitch.cos(),
+                roll.cos() * yaw.sin() + roll.sin() * pitch.sin() * yaw.cos(),
+                translation.x,
+            ),
+            Float4::new(
+                roll.sin() * yaw.cos() + roll.cos() * pitch.sin() * yaw.sin(),
+                scale.y * roll.cos() * pitch.cos(),
+                roll.sin() * yaw.sin() - roll.cos() * pitch.sin() * yaw.cos(),
+                translation.y,
+            ),
+            Float4::new(
+                -pitch.cos() * yaw.sin(),
+                pitch.sin(),
+                scale.z * pitch.cos() * yaw.cos(),
+                translation.z,
+            ),
+            Float4::unit_w(),
+        )
     }
 }
 
@@ -968,6 +1037,19 @@ impl Mul for Float4x4 {
 }
 
 impl Mul<Float4> for Float4x4 {
+    type Output = Float4;
+
+    fn mul(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self.r1.dot(rhs),
+            y: self.r2.dot(rhs),
+            z: self.r3.dot(rhs),
+            w: self.r4.dot(rhs),
+        }
+    }
+}
+
+impl Mul<Float4> for &Float4x4 {
     type Output = Float4;
 
     fn mul(self, rhs: Float4) -> Self::Output {

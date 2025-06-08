@@ -1,7 +1,7 @@
 use core::f32;
 
 use crate::camera::Camera;
-use crate::math::{Float2, Float3, point_in_triangle};
+use crate::math::{Float2, Float3, Float4, point_in_triangle};
 use crate::model::Model;
 use crate::scene::Scene;
 use crate::transform::Transform;
@@ -9,12 +9,19 @@ use crate::transform::Transform;
 #[derive(Clone, Copy)]
 struct RasterizerPoint {
     screen_pos: Float2,
+    texture_coords: Float2,
+    normal: Float3,
     depth: f32,
 }
 
 impl RasterizerPoint {
-    fn new(screen_pos: Float2, depth: f32) -> Self {
-        RasterizerPoint { screen_pos, depth }
+    fn new(screen_pos: Float2, texture_coords: Float2, normal: Float3, depth: f32) -> Self {
+        RasterizerPoint {
+            screen_pos,
+            texture_coords,
+            normal,
+            depth,
+        }
     }
 }
 
@@ -59,14 +66,20 @@ impl RenderTarget {
                 let (
                     RasterizerPoint {
                         screen_pos: a,
+                        texture_coords: _uv_a,
+                        normal: _n_a,
                         depth: a_z,
                     },
                     RasterizerPoint {
                         screen_pos: b,
+                        texture_coords: _uv_b,
+                        normal: _n_b,
                         depth: b_z,
                     },
                     RasterizerPoint {
                         screen_pos: c,
+                        texture_coords: _uv_c,
+                        normal: _n_c,
                         depth: c_z,
                     },
                 ) = (chunk[0], chunk[1], chunk[2]);
@@ -132,28 +145,19 @@ impl RenderTarget {
     }
 }
 
-fn model_to_world(vertex: Float3, transform: &Transform) -> Float3 {
+fn model_to_world(vertex: Float4, transform: &Transform) -> Float4 {
     transform.to_world_point(vertex)
 }
 
-fn world_to_view(vertex: Float3, camera: &Camera) -> Float3 {
+fn world_to_view(vertex: Float4, camera: &Camera) -> Float4 {
     camera.transform.to_local_point(vertex)
 }
 
-fn view_to_screen(vertex: Float3, camera: &Camera, size: Float2) -> (Float2, f32) {
+fn view_to_screen(vertex: Float4, camera: &Camera, size: Float2) -> (Float2, f32) {
     // Perspective projection
-    // From view space to normalized device coordinates
-    let top = -camera.near * (camera.fov / 2.0).tan();
-    let bottom = -top;
-    let right = top * size.x / size.y;
-    let left = -right;
-
-    let vertex_persp = Float3::new(
-        2.0 * camera.near / (right - left) * vertex.x - vertex.z * (right + left) / (right - left),
-        2.0 * camera.near / (top - bottom) * vertex.y - vertex.z * (top + bottom) / (top - bottom),
-        (camera.far + camera.near) / (camera.far - camera.near) * vertex.z
-            - 2.0 * camera.far * camera.near / (camera.far - camera.near),
-    ) / vertex.z;
+    let mut vertex_persp = &camera.projection * vertex;
+    // Make vector homogeneous again
+    vertex_persp /= vertex_persp.w;
 
     // Non-invertible projection onto screen space
     let vertex_screen = Float2::new(
@@ -171,15 +175,26 @@ fn subdivide_partial_oob_triangles(
 ) -> (Vec<RasterizerPoint>, Vec<Float3>) {
     let mut rasterizer_points: Vec<RasterizerPoint> = Vec::new();
     let mut rasterizer_colors: Vec<Float3> = Vec::new();
-    for (chunk, color) in model
+    for (((vertices, texture_coords), normals), color) in model
         .triangle_points
         .chunks_exact(3)
+        .zip(model.texture_coords.chunks_exact(3))
+        .zip(model.normals.chunks_exact(3))
         .zip(model.triangle_colors.iter())
     {
         let vertices_view = [
-            world_to_view(model_to_world(chunk[0], &model.transform), &camera),
-            world_to_view(model_to_world(chunk[1], &model.transform), &camera),
-            world_to_view(model_to_world(chunk[2], &model.transform), &camera),
+            world_to_view(
+                model_to_world(Float4::from_point(vertices[0]), &model.transform),
+                &camera,
+            ),
+            world_to_view(
+                model_to_world(Float4::from_point(vertices[1]), &model.transform),
+                &camera,
+            ),
+            world_to_view(
+                model_to_world(Float4::from_point(vertices[2]), &model.transform),
+                &camera,
+            ),
         ];
 
         let clip_0 = vertices_view[0].z >= camera.near;
@@ -194,9 +209,40 @@ fn subdivide_partial_oob_triangles(
                     view_to_screen(vertices_view[1], &camera, size),
                     view_to_screen(vertices_view[2], &camera, size),
                 );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
-                rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
-                rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
+
+                let normals_view = [
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[0]), &model.transform),
+                        &camera,
+                    ),
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[1]), &model.transform),
+                        &camera,
+                    ),
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[2]), &model.transform),
+                        &camera,
+                    ),
+                ];
+
+                rasterizer_points.push(RasterizerPoint::new(
+                    a_screen,
+                    texture_coords[0],
+                    normals_view[0].xyz(),
+                    a_z,
+                ));
+                rasterizer_points.push(RasterizerPoint::new(
+                    b_screen,
+                    texture_coords[1],
+                    normals_view[1].xyz(),
+                    b_z,
+                ));
+                rasterizer_points.push(RasterizerPoint::new(
+                    c_screen,
+                    texture_coords[2],
+                    normals_view[2].xyz(),
+                    c_z,
+                ));
                 rasterizer_colors.push(*color);
             }
             1 => {
@@ -220,15 +266,41 @@ fn subdivide_partial_oob_triangles(
                 let clip_vertex_along_edge_a = vertex_clip.lerp(vertex_a, frac_a);
                 let clip_vertex_along_edge_b = vertex_clip.lerp(vertex_b, frac_b);
 
+                let uv_a = texture_coords[idx_clip].lerp(texture_coords[idx_next], frac_a);
+                let uv_b = texture_coords[idx_clip].lerp(texture_coords[idx_prev], frac_b);
+
+                let normals_view = [
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[0]), &model.transform),
+                        &camera,
+                    ),
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[1]), &model.transform),
+                        &camera,
+                    ),
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[2]), &model.transform),
+                        &camera,
+                    ),
+                ];
+
+                let normal_a = normals_view[idx_clip].lerp(normals_view[idx_next], frac_a);
+                let normal_b = normals_view[idx_clip].lerp(normals_view[idx_prev], frac_b);
+
                 // First new triangle
                 let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
                     view_to_screen(clip_vertex_along_edge_b, &camera, size),
                     view_to_screen(clip_vertex_along_edge_a, &camera, size),
                     view_to_screen(vertex_b, &camera, size),
                 );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
-                rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
-                rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
+                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_b, normal_b.xyz(), a_z));
+                rasterizer_points.push(RasterizerPoint::new(b_screen, uv_a, normal_a.xyz(), b_z));
+                rasterizer_points.push(RasterizerPoint::new(
+                    c_screen,
+                    texture_coords[idx_prev],
+                    normals_view[idx_prev].xyz(),
+                    c_z,
+                ));
                 rasterizer_colors.push(*color);
                 // rasterizer_colors.push(Float3::new(1.0, 0.0, 0.0));
 
@@ -238,9 +310,19 @@ fn subdivide_partial_oob_triangles(
                     view_to_screen(vertex_a, &camera, size),
                     view_to_screen(vertex_b, &camera, size),
                 );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
-                rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
-                rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
+                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_a, normal_a.xyz(), a_z));
+                rasterizer_points.push(RasterizerPoint::new(
+                    b_screen,
+                    texture_coords[idx_next],
+                    normals_view[idx_next].xyz(),
+                    b_z,
+                ));
+                rasterizer_points.push(RasterizerPoint::new(
+                    c_screen,
+                    texture_coords[idx_prev],
+                    normals_view[idx_prev].xyz(),
+                    c_z,
+                ));
                 rasterizer_colors.push(*color);
                 // rasterizer_colors.push(Float3::new(0.0, 1.0, 0.0));
             }
@@ -265,15 +347,41 @@ fn subdivide_partial_oob_triangles(
                 let clip_vertex_along_edge_a = vertex_non_clip.lerp(vertex_a, frac_a);
                 let clip_vertex_along_edge_b = vertex_non_clip.lerp(vertex_b, frac_b);
 
+                let uv_a = texture_coords[idx_non_clip].lerp(texture_coords[idx_next], frac_a);
+                let uv_b = texture_coords[idx_non_clip].lerp(texture_coords[idx_prev], frac_b);
+
+                let normals_view = [
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[0]), &model.transform),
+                        &camera,
+                    ),
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[1]), &model.transform),
+                        &camera,
+                    ),
+                    world_to_view(
+                        model_to_world(Float4::from_vector(normals[2]), &model.transform),
+                        &camera,
+                    ),
+                ];
+
+                let normal_a = normals_view[idx_non_clip].lerp(normals_view[idx_next], frac_a);
+                let normal_b = normals_view[idx_non_clip].lerp(normals_view[idx_prev], frac_b);
+
                 // New triangle
                 let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
                     view_to_screen(clip_vertex_along_edge_b, &camera, size),
                     view_to_screen(vertex_non_clip, &camera, size),
                     view_to_screen(clip_vertex_along_edge_a, &camera, size),
                 );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, a_z));
-                rasterizer_points.push(RasterizerPoint::new(b_screen, b_z));
-                rasterizer_points.push(RasterizerPoint::new(c_screen, c_z));
+                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_b, normal_b.xyz(), a_z));
+                rasterizer_points.push(RasterizerPoint::new(
+                    b_screen,
+                    texture_coords[idx_non_clip],
+                    normals_view[idx_non_clip].xyz(),
+                    b_z,
+                ));
+                rasterizer_points.push(RasterizerPoint::new(c_screen, uv_a, normal_a.xyz(), c_z));
                 rasterizer_colors.push(*color);
                 // rasterizer_colors.push(Float3::new(0.0, 0.0, 1.0));
             }
