@@ -243,6 +243,7 @@ fn subdivide_partial_oob_triangles(
                     normals_view[2].xyz(),
                     c_z,
                 ));
+
                 rasterizer_colors.push(*color);
             }
             1 => {

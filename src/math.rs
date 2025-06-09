@@ -2,9 +2,9 @@ use rand::{
     Rng,
     distr::uniform::{SampleUniform, UniformFloat, UniformSampler},
 };
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Float2 {
     pub x: f32,
     pub y: f32,
@@ -31,7 +31,7 @@ impl Float2 {
         Self::new(0.0, 1.0)
     }
 
-    pub fn dot(self, other: Float2) -> f32 {
+    pub fn dot(&self, other: Float2) -> f32 {
         self.x * other.x + self.y * other.y
     }
 
@@ -42,7 +42,7 @@ impl Float2 {
         }
     }
 
-    pub fn lerp(self, other: Float2, t: f32) -> Self {
+    pub fn lerp(&self, other: Float2, t: f32) -> Self {
         self + t * (other - self)
     }
 }
@@ -58,14 +58,152 @@ impl Add for Float2 {
     }
 }
 
-impl Neg for Float2 {
+impl Add<&Float2> for Float2 {
     type Output = Self;
 
-    fn neg(self) -> Self::Output {
+    fn add(self, rhs: &Float2) -> Self::Output {
         Self {
-            x: -self.x,
-            y: -self.y,
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
         }
+    }
+}
+
+impl Add<Float2> for &Float2 {
+    type Output = Float2;
+
+    fn add(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a Float2> for &'b Float2 {
+    type Output = Float2;
+
+    fn add(self, rhs: &'a Float2) -> Self::Output {
+        Float2 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Add<f32> for Float2 {
+    type Output = Self;
+
+    fn add(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x + rhs,
+            y: self.y + rhs,
+        }
+    }
+}
+
+impl Add<&f32> for Float2 {
+    type Output = Self;
+
+    fn add(self, rhs: &f32) -> Self::Output {
+        Self {
+            x: self.x + rhs,
+            y: self.y + rhs,
+        }
+    }
+}
+
+impl Add<f32> for &Float2 {
+    type Output = Float2;
+
+    fn add(self, rhs: f32) -> Self::Output {
+        Float2 {
+            x: self.x + rhs,
+            y: self.y + rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a f32> for &'b Float2 {
+    type Output = Float2;
+
+    fn add(self, rhs: &'a f32) -> Self::Output {
+        Float2 {
+            x: self.x + rhs,
+            y: self.y + rhs,
+        }
+    }
+}
+
+impl Add<Float2> for f32 {
+    type Output = Float2;
+
+    fn add(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+        }
+    }
+}
+
+impl Add<&Float2> for f32 {
+    type Output = Float2;
+
+    fn add(self, rhs: &Float2) -> Self::Output {
+        Float2 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+        }
+    }
+}
+
+impl Add<Float2> for &f32 {
+    type Output = Float2;
+
+    fn add(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a Float2> for &'b f32 {
+    type Output = Float2;
+
+    fn add(self, rhs: &'a Float2) -> Self::Output {
+        Float2 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+        }
+    }
+}
+
+impl AddAssign for Float2 {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
+impl AddAssign<&Float2> for Float2 {
+    fn add_assign(&mut self, rhs: &Float2) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
+impl AddAssign<f32> for Float2 {
+    fn add_assign(&mut self, rhs: f32) {
+        self.x += rhs;
+        self.y += rhs;
+    }
+}
+
+impl AddAssign<&f32> for Float2 {
+    fn add_assign(&mut self, rhs: &f32) {
+        self.x += rhs;
+        self.y += rhs;
     }
 }
 
@@ -73,6 +211,17 @@ impl Sub for Float2 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        Float2 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl Sub<Float2> for &Float2 {
+    type Output = Float2;
+
+    fn sub(self, rhs: Float2) -> Self::Output {
         Float2 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
@@ -102,11 +251,160 @@ impl<'a, 'b> Sub<&'b Float2> for &'a Float2 {
     }
 }
 
+impl Sub<f32> for Float2 {
+    type Output = Self;
+
+    fn sub(self, rhs: f32) -> Self::Output {
+        Float2 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+        }
+    }
+}
+
+impl Sub<f32> for &Float2 {
+    type Output = Float2;
+
+    fn sub(self, rhs: f32) -> Self::Output {
+        Float2 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+        }
+    }
+}
+
+impl Sub<&f32> for Float2 {
+    type Output = Self;
+
+    fn sub(self, rhs: &f32) -> Self::Output {
+        Float2 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b f32> for &'a Float2 {
+    type Output = Float2;
+
+    fn sub(self, rhs: &'b f32) -> Self::Output {
+        Float2 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+        }
+    }
+}
+
+impl Sub<Float2> for f32 {
+    type Output = Float2;
+
+    fn sub(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+        }
+    }
+}
+
+impl Sub<Float2> for &f32 {
+    type Output = Float2;
+
+    fn sub(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+        }
+    }
+}
+
+impl Sub<&Float2> for f32 {
+    type Output = Float2;
+
+    fn sub(self, rhs: &Float2) -> Self::Output {
+        Float2 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b Float2> for &'a f32 {
+    type Output = Float2;
+
+    fn sub(self, rhs: &'b Float2) -> Self::Output {
+        Float2 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+        }
+    }
+}
+
+impl SubAssign for Float2 {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+    }
+}
+
+impl SubAssign<&Float2> for Float2 {
+    fn sub_assign(&mut self, rhs: &Float2) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+    }
+}
+
+impl SubAssign<f32> for Float2 {
+    fn sub_assign(&mut self, rhs: f32) {
+        self.x -= rhs;
+        self.y -= rhs;
+    }
+}
+
+impl SubAssign<&f32> for Float2 {
+    fn sub_assign(&mut self, rhs: &f32) {
+        self.x -= rhs;
+        self.y -= rhs;
+    }
+}
+
 impl Mul for Float2 {
     type Output = Self;
 
     fn mul(self, rhs: Float2) -> Self::Output {
         Self {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+        }
+    }
+}
+
+impl Mul<Float2> for &Float2 {
+    type Output = Float2;
+
+    fn mul(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+        }
+    }
+}
+
+impl Mul<&Float2> for Float2 {
+    type Output = Self;
+
+    fn mul(self, rhs: &Float2) -> Self::Output {
+        Float2 {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+        }
+    }
+}
+
+impl<'a, 'b> Mul<&'a Float2> for &'b Float2 {
+    type Output = Float2;
+
+    fn mul(self, rhs: &'a Float2) -> Self::Output {
+        Float2 {
             x: self.x * rhs.x,
             y: self.y * rhs.y,
         }
@@ -124,6 +422,39 @@ impl Mul<f32> for Float2 {
     }
 }
 
+impl Mul<f32> for &Float2 {
+    type Output = Float2;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Float2 {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+impl Mul<&f32> for Float2 {
+    type Output = Self;
+
+    fn mul(self, rhs: &f32) -> Self::Output {
+        Float2 {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Mul<&'a f32> for &'b Float2 {
+    type Output = Float2;
+
+    fn mul(self, rhs: &'a f32) -> Self::Output {
+        Float2 {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
 impl Mul<Float2> for f32 {
     type Output = Float2;
 
@@ -135,11 +466,202 @@ impl Mul<Float2> for f32 {
     }
 }
 
+impl Mul<Float2> for &f32 {
+    type Output = Float2;
+
+    fn mul(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+        }
+    }
+}
+
+impl Mul<&Float2> for f32 {
+    type Output = Float2;
+
+    fn mul(self, rhs: &Float2) -> Self::Output {
+        Float2 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+        }
+    }
+}
+
+impl<'a, 'b> Mul<&'a Float2> for &'b f32 {
+    type Output = Float2;
+
+    fn mul(self, rhs: &'a Float2) -> Self::Output {
+        Float2 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+        }
+    }
+}
+
+impl MulAssign for Float2 {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+    }
+}
+
+impl MulAssign<&Float2> for Float2 {
+    fn mul_assign(&mut self, rhs: &Float2) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+    }
+}
+
+impl MulAssign<f32> for Float2 {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+
+impl MulAssign<&f32> for Float2 {
+    fn mul_assign(&mut self, rhs: &f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+
+impl Div for Float2 {
+    type Output = Self;
+
+    fn div(self, rhs: Float2) -> Self::Output {
+        Self {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+        }
+    }
+}
+
+impl Div<Float2> for &Float2 {
+    type Output = Float2;
+
+    fn div(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+        }
+    }
+}
+
+impl Div<&Float2> for Float2 {
+    type Output = Self;
+
+    fn div(self, rhs: &Float2) -> Self::Output {
+        Float2 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+        }
+    }
+}
+
+impl<'a, 'b> Div<&'a Float2> for &'b Float2 {
+    type Output = Float2;
+
+    fn div(self, rhs: &'a Float2) -> Self::Output {
+        Float2 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+        }
+    }
+}
+
 impl Div<f32> for Float2 {
     type Output = Self;
 
     fn div(self, rhs: f32) -> Self::Output {
-        self * (1.0 / rhs)
+        Float2 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
+impl Div<f32> for &Float2 {
+    type Output = Float2;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Float2 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
+impl Div<&f32> for Float2 {
+    type Output = Self;
+
+    fn div(self, rhs: &f32) -> Self::Output {
+        Float2 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Div<&'a f32> for &'b Float2 {
+    type Output = Float2;
+
+    fn div(self, rhs: &'a f32) -> Self::Output {
+        Float2 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
+impl DivAssign for Float2 {
+    fn div_assign(&mut self, rhs: Self) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+    }
+}
+
+impl DivAssign<&Float2> for Float2 {
+    fn div_assign(&mut self, rhs: &Float2) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+    }
+}
+
+impl DivAssign<f32> for Float2 {
+    fn div_assign(&mut self, rhs: f32) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
+impl DivAssign<&f32> for Float2 {
+    fn div_assign(&mut self, rhs: &f32) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
+impl Neg for Float2 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
+}
+
+impl Neg for &Float2 {
+    type Output = Float2;
+
+    fn neg(self) -> Self::Output {
+        Float2 {
+            x: -self.x,
+            y: -self.y,
+        }
     }
 }
 
@@ -186,7 +708,7 @@ impl SampleUniform for Float2 {
     type Sampler = UniformFloat2;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Float3 {
     pub x: f32,
     pub y: f32,
@@ -226,11 +748,11 @@ impl Float3 {
         Self::new(0.0, 0.0, 1.0)
     }
 
-    pub fn dot(self, other: Float3) -> f32 {
+    pub fn dot(&self, other: Float3) -> f32 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn cross(self, other: Float3) -> Self {
+    pub fn cross(&self, other: Float3) -> Self {
         Self {
             x: self.y * other.z - self.z * other.y,
             y: self.z * other.x - self.x * other.z,
@@ -251,7 +773,7 @@ impl Float3 {
         }
     }
 
-    pub fn lerp(self, other: Float3, t: f32) -> Self {
+    pub fn lerp(&self, other: Float3, t: f32) -> Self {
         self + t * (other - self)
     }
 }
@@ -261,6 +783,42 @@ impl Add for Float3 {
 
     fn add(self, rhs: Self) -> Self::Output {
         Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+        }
+    }
+}
+
+impl Add<&Float3> for Float3 {
+    type Output = Self;
+
+    fn add(self, rhs: &Float3) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+        }
+    }
+}
+
+impl Add<Float3> for &Float3 {
+    type Output = Float3;
+
+    fn add(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a Float3> for &'b Float3 {
+    type Output = Float3;
+
+    fn add(self, rhs: &'a Float3) -> Self::Output {
+        Float3 {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
             z: self.z + rhs.z,
@@ -280,37 +838,119 @@ impl Add<f32> for Float3 {
     }
 }
 
+impl Add<&f32> for Float3 {
+    type Output = Self;
+
+    fn add(self, rhs: &f32) -> Self::Output {
+        Self {
+            x: self.x + rhs,
+            y: self.y + rhs,
+            z: self.z + rhs,
+        }
+    }
+}
+
+impl Add<f32> for &Float3 {
+    type Output = Float3;
+
+    fn add(self, rhs: f32) -> Self::Output {
+        Float3 {
+            x: self.x + rhs,
+            y: self.y + rhs,
+            z: self.z + rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a f32> for &'b Float3 {
+    type Output = Float3;
+
+    fn add(self, rhs: &'a f32) -> Self::Output {
+        Float3 {
+            x: self.x + rhs,
+            y: self.y + rhs,
+            z: self.z + rhs,
+        }
+    }
+}
+
 impl Add<Float3> for f32 {
     type Output = Float3;
 
     fn add(self, rhs: Float3) -> Self::Output {
         Float3 {
-            x: rhs.x + self,
-            y: rhs.y + self,
-            z: rhs.z + self,
+            x: self + rhs.x,
+            y: self + rhs.y,
+            z: self + rhs.z,
+        }
+    }
+}
+
+impl Add<&Float3> for f32 {
+    type Output = Float3;
+
+    fn add(self, rhs: &Float3) -> Self::Output {
+        Float3 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+            z: self + rhs.z,
+        }
+    }
+}
+
+impl Add<Float3> for &f32 {
+    type Output = Float3;
+
+    fn add(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+            z: self + rhs.z,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a Float3> for &'b f32 {
+    type Output = Float3;
+
+    fn add(self, rhs: &'a Float3) -> Self::Output {
+        Float3 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+            z: self + rhs.z,
         }
     }
 }
 
 impl AddAssign for Float3 {
     fn add_assign(&mut self, rhs: Self) {
-        *self = Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-            z: self.z + rhs.z,
-        };
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
     }
 }
 
-impl Neg for Float3 {
-    type Output = Self;
+impl AddAssign<&Float3> for Float3 {
+    fn add_assign(&mut self, rhs: &Float3) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
+    }
+}
 
-    fn neg(self) -> Self::Output {
-        Self {
-            x: -self.x,
-            y: -self.y,
-            z: -self.z,
-        }
+impl AddAssign<f32> for Float3 {
+    fn add_assign(&mut self, rhs: f32) {
+        self.x += rhs;
+        self.y += rhs;
+        self.z += rhs;
+    }
+}
+
+impl AddAssign<&f32> for Float3 {
+    fn add_assign(&mut self, rhs: &f32) {
+        self.x += rhs;
+        self.y += rhs;
+        self.z += rhs;
     }
 }
 
@@ -318,6 +958,42 @@ impl Sub for Float3 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        Float3 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+        }
+    }
+}
+
+impl Sub<Float3> for &Float3 {
+    type Output = Float3;
+
+    fn sub(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+        }
+    }
+}
+
+impl Sub<&Float3> for Float3 {
+    type Output = Self;
+
+    fn sub(self, rhs: &Float3) -> Self::Output {
+        Float3 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b Float3> for &'a Float3 {
+    type Output = Float3;
+
+    fn sub(self, rhs: &'b Float3) -> Self::Output {
         Float3 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
@@ -338,13 +1014,119 @@ impl Sub<f32> for Float3 {
     }
 }
 
+impl Sub<f32> for &Float3 {
+    type Output = Float3;
+
+    fn sub(self, rhs: f32) -> Self::Output {
+        Float3 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+        }
+    }
+}
+
+impl Sub<&f32> for Float3 {
+    type Output = Self;
+
+    fn sub(self, rhs: &f32) -> Self::Output {
+        Float3 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b f32> for &'a Float3 {
+    type Output = Float3;
+
+    fn sub(self, rhs: &'b f32) -> Self::Output {
+        Float3 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+        }
+    }
+}
+
+impl Sub<Float3> for f32 {
+    type Output = Float3;
+
+    fn sub(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+        }
+    }
+}
+
+impl Sub<Float3> for &f32 {
+    type Output = Float3;
+
+    fn sub(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+        }
+    }
+}
+
+impl Sub<&Float3> for f32 {
+    type Output = Float3;
+
+    fn sub(self, rhs: &Float3) -> Self::Output {
+        Float3 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b Float3> for &'a f32 {
+    type Output = Float3;
+
+    fn sub(self, rhs: &'b Float3) -> Self::Output {
+        Float3 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+        }
+    }
+}
+
 impl SubAssign for Float3 {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = Self {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-            z: self.z - rhs.z,
-        };
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+        self.z -= rhs.z;
+    }
+}
+
+impl SubAssign<&Float3> for Float3 {
+    fn sub_assign(&mut self, rhs: &Float3) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+        self.z -= rhs.z;
+    }
+}
+
+impl SubAssign<f32> for Float3 {
+    fn sub_assign(&mut self, rhs: f32) {
+        self.x -= rhs;
+        self.y -= rhs;
+        self.z -= rhs;
+    }
+}
+
+impl SubAssign<&f32> for Float3 {
+    fn sub_assign(&mut self, rhs: &f32) {
+        self.x -= rhs;
+        self.y -= rhs;
+        self.z -= rhs;
     }
 }
 
@@ -360,10 +1142,34 @@ impl Mul for Float3 {
     }
 }
 
-impl Mul for &Float3 {
+impl Mul<Float3> for &Float3 {
     type Output = Float3;
 
+    fn mul(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+        }
+    }
+}
+
+impl Mul<&Float3> for Float3 {
+    type Output = Self;
+
     fn mul(self, rhs: &Float3) -> Self::Output {
+        Float3 {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+        }
+    }
+}
+
+impl<'a, 'b> Mul<&'a Float3> for &'b Float3 {
+    type Output = Float3;
+
+    fn mul(self, rhs: &'a Float3) -> Self::Output {
         Float3 {
             x: self.x * rhs.x,
             y: self.y * rhs.y,
@@ -396,7 +1202,43 @@ impl Mul<f32> for &Float3 {
     }
 }
 
+impl Mul<&f32> for Float3 {
+    type Output = Self;
+
+    fn mul(self, rhs: &f32) -> Self::Output {
+        Float3 {
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Mul<&'a f32> for &'b Float3 {
+    type Output = Float3;
+
+    fn mul(self, rhs: &'a f32) -> Self::Output {
+        Float3 {
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
+        }
+    }
+}
+
 impl Mul<Float3> for f32 {
+    type Output = Float3;
+
+    fn mul(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+            z: self * rhs.z,
+        }
+    }
+}
+
+impl Mul<Float3> for &f32 {
     type Output = Float3;
 
     fn mul(self, rhs: Float3) -> Self::Output {
@@ -420,14 +1262,94 @@ impl Mul<&Float3> for f32 {
     }
 }
 
-impl Div<Float3> for f32 {
+impl<'a, 'b> Mul<&'a Float3> for &'b f32 {
+    type Output = Float3;
+
+    fn mul(self, rhs: &'a Float3) -> Self::Output {
+        Float3 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+            z: self * rhs.z,
+        }
+    }
+}
+
+impl MulAssign for Float3 {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+        self.z *= rhs.z;
+    }
+}
+
+impl MulAssign<&Float3> for Float3 {
+    fn mul_assign(&mut self, rhs: &Float3) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+        self.z *= rhs.z;
+    }
+}
+
+impl MulAssign<f32> for Float3 {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+        self.z *= rhs;
+    }
+}
+
+impl MulAssign<&f32> for Float3 {
+    fn mul_assign(&mut self, rhs: &f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+        self.z *= rhs;
+    }
+}
+
+impl Div for Float3 {
+    type Output = Self;
+
+    fn div(self, rhs: Float3) -> Self::Output {
+        Self {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+        }
+    }
+}
+
+impl Div<Float3> for &Float3 {
     type Output = Float3;
 
     fn div(self, rhs: Float3) -> Self::Output {
         Float3 {
-            x: self / rhs.x,
-            y: self / rhs.y,
-            z: self / rhs.z,
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+        }
+    }
+}
+
+impl Div<&Float3> for Float3 {
+    type Output = Self;
+
+    fn div(self, rhs: &Float3) -> Self::Output {
+        Float3 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+        }
+    }
+}
+
+impl<'a, 'b> Div<&'a Float3> for &'b Float3 {
+    type Output = Float3;
+
+    fn div(self, rhs: &'a Float3) -> Self::Output {
+        Float3 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
         }
     }
 }
@@ -436,7 +1358,11 @@ impl Div<f32> for Float3 {
     type Output = Self;
 
     fn div(self, rhs: f32) -> Self::Output {
-        self * (1.0 / rhs)
+        Float3 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+        }
     }
 }
 
@@ -444,18 +1370,90 @@ impl Div<f32> for &Float3 {
     type Output = Float3;
 
     fn div(self, rhs: f32) -> Self::Output {
-        self * (1.0 / rhs)
+        Float3 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+        }
     }
 }
 
-impl Div for Float3 {
+impl Div<&f32> for Float3 {
+    type Output = Self;
+
+    fn div(self, rhs: &f32) -> Self::Output {
+        Float3 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Div<&'a f32> for &'b Float3 {
     type Output = Float3;
 
-    fn div(self, rhs: Self) -> Self::Output {
+    fn div(self, rhs: &'a f32) -> Self::Output {
+        Float3 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+        }
+    }
+}
+
+impl DivAssign for Float3 {
+    fn div_assign(&mut self, rhs: Self) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+        self.z /= rhs.z;
+    }
+}
+
+impl DivAssign<&Float3> for Float3 {
+    fn div_assign(&mut self, rhs: &Float3) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+        self.z /= rhs.z;
+    }
+}
+
+impl DivAssign<f32> for Float3 {
+    fn div_assign(&mut self, rhs: f32) {
+        self.x /= rhs;
+        self.y /= rhs;
+        self.z /= rhs;
+    }
+}
+
+impl DivAssign<&f32> for Float3 {
+    fn div_assign(&mut self, rhs: &f32) {
+        self.x /= rhs;
+        self.y /= rhs;
+        self.z /= rhs;
+    }
+}
+
+impl Neg for Float3 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
         Self {
-            x: self.x / rhs.x,
-            y: self.y / rhs.y,
-            z: self.z / rhs.z,
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+        }
+    }
+}
+
+impl Neg for &Float3 {
+    type Output = Float3;
+
+    fn neg(self) -> Self::Output {
+        Float3 {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
         }
     }
 }
@@ -507,7 +1505,7 @@ impl SampleUniform for Float3 {
     type Sampler = UniformFloat3;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Float4 {
     pub x: f32,
     pub y: f32,
@@ -572,11 +1570,11 @@ impl Float4 {
         Self::new(0.0, 0.0, 0.0, 1.0)
     }
 
-    pub fn xyz(self) -> Float3 {
+    pub fn xyz(&self) -> Float3 {
         Float3::new(self.x, self.y, self.z)
     }
 
-    pub fn dot(self, other: Float4) -> f32 {
+    pub fn dot(&self, other: Float4) -> f32 {
         self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
     }
 
@@ -593,7 +1591,7 @@ impl Float4 {
         }
     }
 
-    pub fn lerp(self, other: Float4, t: f32) -> Self {
+    pub fn lerp(&self, other: Float4, t: f32) -> Self {
         self + t * (other - self)
     }
 }
@@ -611,6 +1609,149 @@ impl Add for Float4 {
     }
 }
 
+impl Add<&Float4> for Float4 {
+    type Output = Self;
+
+    fn add(self, rhs: &Float4) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+            w: self.w + rhs.w,
+        }
+    }
+}
+
+impl Add<Float4> for &Float4 {
+    type Output = Float4;
+
+    fn add(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+            w: self.w + rhs.w,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a Float4> for &'b Float4 {
+    type Output = Float4;
+
+    fn add(self, rhs: &'a Float4) -> Self::Output {
+        Float4 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+            w: self.w + rhs.w,
+        }
+    }
+}
+
+impl Add<f32> for Float4 {
+    type Output = Self;
+
+    fn add(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x + rhs,
+            y: self.y + rhs,
+            z: self.z + rhs,
+            w: self.w + rhs,
+        }
+    }
+}
+
+impl Add<&f32> for Float4 {
+    type Output = Self;
+
+    fn add(self, rhs: &f32) -> Self::Output {
+        Self {
+            x: self.x + rhs,
+            y: self.y + rhs,
+            z: self.z + rhs,
+            w: self.w + rhs,
+        }
+    }
+}
+
+impl Add<f32> for &Float4 {
+    type Output = Float4;
+
+    fn add(self, rhs: f32) -> Self::Output {
+        Float4 {
+            x: self.x + rhs,
+            y: self.y + rhs,
+            z: self.z + rhs,
+            w: self.w + rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a f32> for &'b Float4 {
+    type Output = Float4;
+
+    fn add(self, rhs: &'a f32) -> Self::Output {
+        Float4 {
+            x: self.x + rhs,
+            y: self.y + rhs,
+            z: self.z + rhs,
+            w: self.w + rhs,
+        }
+    }
+}
+
+impl Add<Float4> for f32 {
+    type Output = Float4;
+
+    fn add(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+            z: self + rhs.z,
+            w: self + rhs.w,
+        }
+    }
+}
+
+impl Add<&Float4> for f32 {
+    type Output = Float4;
+
+    fn add(self, rhs: &Float4) -> Self::Output {
+        Float4 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+            z: self + rhs.z,
+            w: self + rhs.w,
+        }
+    }
+}
+
+impl Add<Float4> for &f32 {
+    type Output = Float4;
+
+    fn add(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+            z: self + rhs.z,
+            w: self + rhs.w,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'a Float4> for &'b f32 {
+    type Output = Float4;
+
+    fn add(self, rhs: &'a Float4) -> Self::Output {
+        Float4 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+            z: self + rhs.z,
+            w: self + rhs.w,
+        }
+    }
+}
+
 impl AddAssign for Float4 {
     fn add_assign(&mut self, rhs: Self) {
         self.x += rhs.x;
@@ -620,16 +1761,30 @@ impl AddAssign for Float4 {
     }
 }
 
-impl Neg for Float4 {
-    type Output = Self;
+impl AddAssign<&Float4> for Float4 {
+    fn add_assign(&mut self, rhs: &Float4) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
+        self.w += rhs.w;
+    }
+}
 
-    fn neg(self) -> Self::Output {
-        Self {
-            x: -self.x,
-            y: -self.y,
-            z: -self.z,
-            w: -self.w,
-        }
+impl AddAssign<f32> for Float4 {
+    fn add_assign(&mut self, rhs: f32) {
+        self.x += rhs;
+        self.y += rhs;
+        self.z += rhs;
+        self.w += rhs;
+    }
+}
+
+impl AddAssign<&f32> for Float4 {
+    fn add_assign(&mut self, rhs: &f32) {
+        self.x += rhs;
+        self.y += rhs;
+        self.z += rhs;
+        self.w += rhs;
     }
 }
 
@@ -646,6 +1801,149 @@ impl Sub for Float4 {
     }
 }
 
+impl Sub<Float4> for &Float4 {
+    type Output = Float4;
+
+    fn sub(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+            w: self.w - rhs.w,
+        }
+    }
+}
+
+impl Sub<&Float4> for Float4 {
+    type Output = Self;
+
+    fn sub(self, rhs: &Float4) -> Self::Output {
+        Float4 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+            w: self.w - rhs.w,
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b Float4> for &'a Float4 {
+    type Output = Float4;
+
+    fn sub(self, rhs: &'b Float4) -> Self::Output {
+        Float4 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+            w: self.w - rhs.w,
+        }
+    }
+}
+
+impl Sub<f32> for Float4 {
+    type Output = Self;
+
+    fn sub(self, rhs: f32) -> Self::Output {
+        Float4 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+            w: self.w - rhs,
+        }
+    }
+}
+
+impl Sub<f32> for &Float4 {
+    type Output = Float4;
+
+    fn sub(self, rhs: f32) -> Self::Output {
+        Float4 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+            w: self.w - rhs,
+        }
+    }
+}
+
+impl Sub<&f32> for Float4 {
+    type Output = Self;
+
+    fn sub(self, rhs: &f32) -> Self::Output {
+        Float4 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+            w: self.w - rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b f32> for &'a Float4 {
+    type Output = Float4;
+
+    fn sub(self, rhs: &'b f32) -> Self::Output {
+        Float4 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+            w: self.w - rhs,
+        }
+    }
+}
+
+impl Sub<Float4> for f32 {
+    type Output = Float4;
+
+    fn sub(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+            w: self - rhs.w,
+        }
+    }
+}
+
+impl Sub<Float4> for &f32 {
+    type Output = Float4;
+
+    fn sub(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+            w: self - rhs.w,
+        }
+    }
+}
+
+impl Sub<&Float4> for f32 {
+    type Output = Float4;
+
+    fn sub(self, rhs: &Float4) -> Self::Output {
+        Float4 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+            w: self - rhs.w,
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b Float4> for &'a f32 {
+    type Output = Float4;
+
+    fn sub(self, rhs: &'b Float4) -> Self::Output {
+        Float4 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+            w: self - rhs.w,
+        }
+    }
+}
+
 impl SubAssign for Float4 {
     fn sub_assign(&mut self, rhs: Self) {
         self.x -= rhs.x;
@@ -655,11 +1953,77 @@ impl SubAssign for Float4 {
     }
 }
 
+impl SubAssign<&Float4> for Float4 {
+    fn sub_assign(&mut self, rhs: &Float4) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+        self.z -= rhs.z;
+        self.w -= rhs.w;
+    }
+}
+
+impl SubAssign<f32> for Float4 {
+    fn sub_assign(&mut self, rhs: f32) {
+        self.x -= rhs;
+        self.y -= rhs;
+        self.z -= rhs;
+        self.w -= rhs;
+    }
+}
+
+impl SubAssign<&f32> for Float4 {
+    fn sub_assign(&mut self, rhs: &f32) {
+        self.x -= rhs;
+        self.y -= rhs;
+        self.z -= rhs;
+        self.w -= rhs;
+    }
+}
+
 impl Mul for Float4 {
     type Output = Self;
 
     fn mul(self, rhs: Float4) -> Self::Output {
         Self {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+            w: self.w * rhs.w,
+        }
+    }
+}
+
+impl Mul<Float4> for &Float4 {
+    type Output = Float4;
+
+    fn mul(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+            w: self.w * rhs.w,
+        }
+    }
+}
+
+impl Mul<&Float4> for Float4 {
+    type Output = Self;
+
+    fn mul(self, rhs: &Float4) -> Self::Output {
+        Float4 {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+            w: self.w * rhs.w,
+        }
+    }
+}
+
+impl<'a, 'b> Mul<&'a Float4> for &'b Float4 {
+    type Output = Float4;
+
+    fn mul(self, rhs: &'a Float4) -> Self::Output {
+        Float4 {
             x: self.x * rhs.x,
             y: self.y * rhs.y,
             z: self.z * rhs.z,
@@ -694,6 +2058,32 @@ impl Mul<f32> for &Float4 {
     }
 }
 
+impl Mul<&f32> for Float4 {
+    type Output = Self;
+
+    fn mul(self, rhs: &f32) -> Self::Output {
+        Float4 {
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
+            w: self.w * rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Mul<&'a f32> for &'b Float4 {
+    type Output = Float4;
+
+    fn mul(self, rhs: &'a f32) -> Self::Output {
+        Float4 {
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
+            w: self.w * rhs,
+        }
+    }
+}
+
 impl Mul<Float4> for f32 {
     type Output = Float4;
 
@@ -707,52 +2097,98 @@ impl Mul<Float4> for f32 {
     }
 }
 
-impl Div<Float4> for f32 {
+impl Mul<Float4> for &f32 {
     type Output = Float4;
 
-    fn div(self, rhs: Float4) -> Self::Output {
+    fn mul(self, rhs: Float4) -> Self::Output {
         Float4 {
-            x: self / rhs.x,
-            y: self / rhs.y,
-            z: self / rhs.z,
-            w: self / rhs.w,
+            x: self * rhs.x,
+            y: self * rhs.y,
+            z: self * rhs.z,
+            w: self * rhs.w,
         }
     }
 }
 
-impl Div<&Float4> for f32 {
+impl Mul<&Float4> for f32 {
     type Output = Float4;
 
-    fn div(self, rhs: &Float4) -> Self::Output {
+    fn mul(self, rhs: &Float4) -> Self::Output {
         Float4 {
-            x: self / rhs.x,
-            y: self / rhs.y,
-            z: self / rhs.z,
-            w: self / rhs.w,
+            x: self * rhs.x,
+            y: self * rhs.y,
+            z: self * rhs.z,
+            w: self * rhs.w,
         }
     }
 }
 
-impl Div<f32> for Float4 {
-    type Output = Self;
+impl<'a, 'b> Mul<&'a Float4> for &'b f32 {
+    type Output = Float4;
 
-    fn div(self, rhs: f32) -> Self::Output {
-        self * (1.0 / rhs)
+    fn mul(self, rhs: &'a Float4) -> Self::Output {
+        Float4 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+            z: self * rhs.z,
+            w: self * rhs.w,
+        }
     }
 }
 
-impl Div<f32> for &Float4 {
-    type Output = Float4;
+impl MulAssign for Float4 {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+        self.z *= rhs.z;
+        self.w *= rhs.w;
+    }
+}
 
-    fn div(self, rhs: f32) -> Self::Output {
-        self * (1.0 / rhs)
+impl MulAssign<&Float4> for Float4 {
+    fn mul_assign(&mut self, rhs: &Float4) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+        self.z *= rhs.z;
+        self.w *= rhs.w;
+    }
+}
+
+impl MulAssign<f32> for Float4 {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+        self.z *= rhs;
+        self.w *= rhs;
+    }
+}
+
+impl MulAssign<&f32> for Float4 {
+    fn mul_assign(&mut self, rhs: &f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+        self.z *= rhs;
+        self.w *= rhs;
     }
 }
 
 impl Div for Float4 {
+    type Output = Self;
+
+    fn div(self, rhs: Float4) -> Self::Output {
+        Self {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+            w: self.w / rhs.w,
+        }
+    }
+}
+
+impl Div<Float4> for &Float4 {
     type Output = Float4;
 
-    fn div(self, rhs: Self) -> Self::Output {
+    fn div(self, rhs: Float4) -> Self::Output {
         Float4 {
             x: self.x / rhs.x,
             y: self.y / rhs.y,
@@ -762,12 +2198,143 @@ impl Div for Float4 {
     }
 }
 
+impl Div<&Float4> for Float4 {
+    type Output = Self;
+
+    fn div(self, rhs: &Float4) -> Self::Output {
+        Float4 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+            w: self.w / rhs.w,
+        }
+    }
+}
+
+impl<'a, 'b> Div<&'a Float4> for &'b Float4 {
+    type Output = Float4;
+
+    fn div(self, rhs: &'a Float4) -> Self::Output {
+        Float4 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+            w: self.w / rhs.w,
+        }
+    }
+}
+
+impl Div<f32> for Float4 {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Float4 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+            w: self.w / rhs,
+        }
+    }
+}
+
+impl Div<f32> for &Float4 {
+    type Output = Float4;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Float4 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+            w: self.w / rhs,
+        }
+    }
+}
+
+impl Div<&f32> for Float4 {
+    type Output = Self;
+
+    fn div(self, rhs: &f32) -> Self::Output {
+        Float4 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+            w: self.w / rhs,
+        }
+    }
+}
+
+impl<'a, 'b> Div<&'a f32> for &'b Float4 {
+    type Output = Float4;
+
+    fn div(self, rhs: &'a f32) -> Self::Output {
+        Float4 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+            w: self.w / rhs,
+        }
+    }
+}
+
+impl DivAssign for Float4 {
+    fn div_assign(&mut self, rhs: Self) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+        self.z /= rhs.z;
+        self.w /= rhs.w;
+    }
+}
+
+impl DivAssign<&Float4> for Float4 {
+    fn div_assign(&mut self, rhs: &Float4) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+        self.z /= rhs.z;
+        self.w /= rhs.w;
+    }
+}
+
 impl DivAssign<f32> for Float4 {
     fn div_assign(&mut self, rhs: f32) {
         self.x /= rhs;
         self.y /= rhs;
         self.z /= rhs;
         self.w /= rhs;
+    }
+}
+
+impl DivAssign<&f32> for Float4 {
+    fn div_assign(&mut self, rhs: &f32) {
+        self.x /= rhs;
+        self.y /= rhs;
+        self.z /= rhs;
+        self.w /= rhs;
+    }
+}
+
+impl Neg for Float4 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+            w: -self.w,
+        }
+    }
+}
+
+impl Neg for &Float4 {
+    type Output = Float4;
+
+    fn neg(self) -> Self::Output {
+        Float4 {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+            w: -self.w,
+        }
     }
 }
 
