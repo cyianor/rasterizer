@@ -1,29 +1,30 @@
 use crate::math::{Float2, Float3};
+use crate::shader::Shader;
 use crate::transform::Transform;
 use std::fs::read_to_string;
 
 pub struct Model {
     pub triangle_points: Vec<Float3>,
-    pub triangle_colors: Vec<Float3>,
     pub texture_coords: Vec<Float2>,
     pub normals: Vec<Float3>,
     pub transform: Transform,
+    pub shader: Box<dyn Shader>,
 }
 
 impl Model {
     pub fn new(
         triangle_points: Vec<Float3>,
-        triangle_colors: Vec<Float3>,
         texture_coords: Vec<Float2>,
         normals: Vec<Float3>,
         transform: Transform,
+        shader: Box<dyn Shader>,
     ) -> Self {
         Self {
             triangle_points,
-            triangle_colors,
             texture_coords,
             normals,
             transform,
+            shader,
         }
     }
 }
@@ -98,8 +99,8 @@ pub fn read_obj_file(
 
                 if parse_normals {
                     if i >= 3 {
-                    normals.push(normals[normals.len() - (3 * i - 6)]);
-                    normals.push(normals[normals.len() - 2]);
+                        normals.push(normals[normals.len() - (3 * i - 6)]);
+                        normals.push(normals[normals.len() - 2]);
                     }
                     normals.push(vns[indices[2].as_ref().unwrap() - 1]);
                 }

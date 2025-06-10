@@ -1,10 +1,12 @@
 use crate::camera::Camera;
 use crate::math::Float3;
-use crate::model::{Model, read_obj_file};
 use crate::render::RenderTarget;
+use crate::model::{Model, read_obj_file};
+use crate::shader::{TextureShader, DiffuseShader};
+use crate::texture::Texture;
 use crate::transform::Transform;
-use rand::distr::{Distribution, Uniform};
-use raylib::prelude::*;
+use raylib::RaylibHandle;
+use raylib::ffi::KeyboardKey;
 
 pub struct Scene {
     pub camera: Camera,
@@ -19,7 +21,7 @@ impl Scene {
     pub fn new(aspect_ratio: f32) -> Self {
         let mut scene = Self {
             camera: Camera::new(
-                Float3::new(0.0, 2.0, -20.0),
+                Float3::new(0.0, 2.0, 20.0),
                 Float3::zeros(),
                 Float3::new(0.0, 1.0, 0.0),
                 60f32.to_radians(),
@@ -34,56 +36,55 @@ impl Scene {
             last_frame_counter: 0,
         };
 
-        println!("{:?}", scene.camera.transform.get_basis_vectors());
-        println!("{:?}", scene.camera.transform.get_rotation());
-
-        println!("{:?}", scene.camera.transform.get_inverse_basis_vectors());
-        println!("{:?}", scene.camera.transform.get_inverse_rotation());
-
-        let (vertices, texture_coords, normals) = read_obj_file("models/cube.obj", true, true).unwrap();
-
-        let mut rng = rand::rng();
-        let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
-
-        let triangle_colors = (0..vertices.len() / 3)
-            .map(|_| uniform_color.sample(&mut rng))
-            .collect::<Vec<_>>();
+        let (vertices, texture_coords, normals) =
+            read_obj_file("models/cube.obj", true, true).unwrap();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), Float3::ones());
 
-        scene
-            .models
-            .push(Model::new(vertices, triangle_colors, texture_coords, normals, transform));
+        // let shader = DiffuseShader::new(Float3::new(1.0, 0.0, 0.0));
+                let texture = Texture::from_png("models/checker-map_tho.png");
+        let shader = TextureShader::new(texture);
 
-        let (vertices, texture_coords, normals) = read_obj_file("models/Dragon_8K.obj", false, true).unwrap();
+        scene.models.push(Model::new(
+            vertices,
+            texture_coords,
+            normals,
+            transform,
+            Box::new(shader),
+        ));
 
-        let mut rng = rand::rng();
-        let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
+        let (vertices, texture_coords, normals) =
+            read_obj_file("models/dragon.obj", true, true).unwrap();
 
-        let triangle_colors = (0..vertices.len() / 3)
-            .map(|_| uniform_color.sample(&mut rng))
-            .collect::<Vec<_>>();
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 4.0, 0.0), Float3::ones());
 
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 2.0, 0.0), Float3::ones() * 5.0);
+        let shader = DiffuseShader::new(Float3::new(0.0, 1.0, 0.0));
 
-        scene
-            .models
-            .push(Model::new(vertices, triangle_colors, texture_coords, normals, transform));
+        scene.models.push(Model::new(
+            vertices,
+            texture_coords,
+            normals,
+            transform,
+            Box::new(shader),
+        ));
 
-        let (vertices, texture_coords, normals) = read_obj_file("models/floor.obj", true, true).unwrap();
-
-        let mut rng = rand::rng();
-        let uniform_color = Uniform::new(Float3::zeros(), Float3::ones()).unwrap();
-
-        let triangle_colors = (0..vertices.len() / 3)
-            .map(|_| uniform_color.sample(&mut rng))
-            .collect::<Vec<_>>();
-
+        let (vertices, texture_coords, normals) =
+            read_obj_file("models/floor.obj", true, true).unwrap();
+        
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), Float3::ones());
+        
+        let texture = Texture::from_png("models/checker-map_tho.png");
+        let shader = TextureShader::new(texture);
 
-        scene
-            .models
-            .push(Model::new(vertices, triangle_colors, texture_coords, normals, transform));
+        // let shader = DiffuseShader::new(Float3::new(0.0, 0.0, 1.0));
+
+        scene.models.push(Model::new(
+            vertices,
+            texture_coords,
+            normals,
+            transform,
+            Box::new(shader),
+        ));
 
         scene
     }

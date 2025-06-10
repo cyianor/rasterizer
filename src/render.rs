@@ -6,7 +6,7 @@ use crate::model::Model;
 use crate::scene::Scene;
 use crate::transform::Transform;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct RasterizerPoint {
     screen_pos: Float2,
     texture_coords: Float2,
@@ -54,35 +54,38 @@ impl RenderTarget {
 
     pub fn clear(&mut self, color: Float3) {
         self.color_buffer.fill(color);
-        self.depth_buffer.fill(f32::INFINITY);
+        self.depth_buffer.fill(f32::NEG_INFINITY);
     }
 
     pub fn render(&mut self, scene: &Scene) {
         for model in scene.models.iter() {
-            let (rasterizer_points, rasterizer_colors) =
+            let rasterizer_points =
                 subdivide_partial_oob_triangles(model, &scene.camera, self.size);
 
-            for (chunk, color) in rasterizer_points.chunks_exact(3).zip(rasterizer_colors) {
+            for chunk in rasterizer_points.chunks_exact(3) {
                 let (
                     RasterizerPoint {
                         screen_pos: a,
-                        texture_coords: _uv_a,
+                        texture_coords: uv_a,
                         normal: _n_a,
                         depth: a_z,
                     },
                     RasterizerPoint {
                         screen_pos: b,
-                        texture_coords: _uv_b,
+                        texture_coords: uv_b,
                         normal: _n_b,
                         depth: b_z,
                     },
                     RasterizerPoint {
                         screen_pos: c,
-                        texture_coords: _uv_c,
+                        texture_coords: uv_c,
                         normal: _n_c,
                         depth: c_z,
                     },
                 ) = (chunk[0], chunk[1], chunk[2]);
+
+                // let depths = (1.0 + Float3::new(a_z, b_z, c_z)) * 0.5;
+                let depths = Float3::new(a_z, b_z, c_z);
 
                 // Determine chunk bounding box
                 let (min_x, min_y, max_x, max_y) = (
@@ -104,13 +107,15 @@ impl RenderTarget {
                         if let Some(weights) =
                             point_in_triangle(a, b, c, Float2::new(x as f32, y as f32))
                         {
-                            let depths = (1.0 + Float3::new(a_z, b_z, c_z)) * 0.5;
-                            let depth = depths.dot(weights);
-                            if depth > self.depth_buffer[y * self.width + x] {
+                            let depth = 1.0 / (1.0 / depths).dot(weights);
+                            if depth < self.depth_buffer[y * self.width + x] {
                                 continue;
                             }
 
-                            self.color_buffer[y * self.width + x] = color;
+                            let uv = (uv_a / a_z * weights.x + uv_b / b_z * weights.y + uv_c / c_z * weights.z) * depth;
+
+                            self.color_buffer[y * self.width + x] =
+                                model.shader.color(Some(uv), None);
                             self.depth_buffer[y * self.width + x] = depth;
                         }
                     }
@@ -127,19 +132,6 @@ impl RenderTarget {
                 bytes[(y * self.width + x) * 4 + 0] = c.x.clamp(0.0, 255.0) as u8;
                 bytes[(y * self.width + x) * 4 + 2] = c.z.clamp(0.0, 255.0) as u8;
                 bytes[(y * self.width + x) * 4 + 3] = 255;
-            }
-        }
-    }
-
-    pub fn depth_buffer_to_byte_array(&self, bytes: &mut Vec<u8>) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let c =
-                    255 - (self.depth_buffer[y * self.width + x] * 255.0).clamp(0.0, 255.0) as u8;
-                bytes[((self.height - 1 - y) * self.width + x) * 4 + 0] = c;
-                bytes[((self.height - 1 - y) * self.width + x) * 4 + 1] = c;
-                bytes[((self.height - 1 - y) * self.width + x) * 4 + 2] = c;
-                bytes[((self.height - 1 - y) * self.width + x) * 4 + 3] = 255;
             }
         }
     }
@@ -165,22 +157,20 @@ fn view_to_screen(vertex: Float4, camera: &Camera, size: Float2) -> (Float2, f32
         (1.0 - (vertex_persp.y + 1.0) * 0.5) * size.y,
     );
 
-    (vertex_screen, vertex_persp.z)
+    (vertex_screen, vertex.z)
 }
 
 fn subdivide_partial_oob_triangles(
     model: &Model,
     camera: &Camera,
     size: Float2,
-) -> (Vec<RasterizerPoint>, Vec<Float3>) {
+) -> Vec<RasterizerPoint> {
     let mut rasterizer_points: Vec<RasterizerPoint> = Vec::new();
-    let mut rasterizer_colors: Vec<Float3> = Vec::new();
-    for (((vertices, texture_coords), normals), color) in model
+    for ((vertices, texture_coords), normals) in model
         .triangle_points
         .chunks_exact(3)
         .zip(model.texture_coords.chunks_exact(3))
         .zip(model.normals.chunks_exact(3))
-        .zip(model.triangle_colors.iter())
     {
         let vertices_view = [
             world_to_view(
@@ -243,8 +233,6 @@ fn subdivide_partial_oob_triangles(
                     normals_view[2].xyz(),
                     c_z,
                 ));
-
-                rasterizer_colors.push(*color);
             }
             1 => {
                 // Determine which vertex will be clipped and which two will remain.
@@ -302,8 +290,6 @@ fn subdivide_partial_oob_triangles(
                     normals_view[idx_prev].xyz(),
                     c_z,
                 ));
-                rasterizer_colors.push(*color);
-                // rasterizer_colors.push(Float3::new(1.0, 0.0, 0.0));
 
                 // Second new triangle
                 let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
@@ -324,8 +310,6 @@ fn subdivide_partial_oob_triangles(
                     normals_view[idx_prev].xyz(),
                     c_z,
                 ));
-                rasterizer_colors.push(*color);
-                // rasterizer_colors.push(Float3::new(0.0, 1.0, 0.0));
             }
             2 => {
                 // Figure out which point remains and the two that will be clipped
@@ -383,12 +367,10 @@ fn subdivide_partial_oob_triangles(
                     b_z,
                 ));
                 rasterizer_points.push(RasterizerPoint::new(c_screen, uv_a, normal_a.xyz(), c_z));
-                rasterizer_colors.push(*color);
-                // rasterizer_colors.push(Float3::new(0.0, 0.0, 1.0));
             }
             _ => continue,
         }
     }
 
-    (rasterizer_points, rasterizer_colors)
+    rasterizer_points
 }

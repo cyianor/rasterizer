@@ -615,6 +615,50 @@ impl<'a, 'b> Div<&'a f32> for &'b Float2 {
     }
 }
 
+impl Div<Float2> for f32 {
+    type Output = Float2;
+
+    fn div(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self / rhs.x,
+            y: self / rhs.y,
+        }
+    }
+}
+
+impl Div<Float2> for &f32 {
+    type Output = Float2;
+
+    fn div(self, rhs: Float2) -> Self::Output {
+        Float2 {
+            x: self / rhs.x,
+            y: self / rhs.y,
+        }
+    }
+}
+
+impl Div<&Float2> for f32 {
+    type Output = Float2;
+
+    fn div(self, rhs: &Float2) -> Self::Output {
+        Float2 {
+            x: self / rhs.x,
+            y: self / rhs.y,
+        }
+    }
+}
+
+impl<'a, 'b> Div<&'a Float2> for &'b f32 {
+    type Output = Float2;
+
+    fn div(self, rhs: &'a Float2) -> Self::Output {
+        Float2 {
+            x: self / rhs.x,
+            y: self / rhs.y,
+        }
+    }
+}
+
 impl DivAssign for Float2 {
     fn div_assign(&mut self, rhs: Self) {
         self.x /= rhs.x;
@@ -1398,6 +1442,55 @@ impl<'a, 'b> Div<&'a f32> for &'b Float3 {
             x: self.x / rhs,
             y: self.y / rhs,
             z: self.z / rhs,
+        }
+    }
+}
+
+
+impl Div<Float3> for f32 {
+    type Output = Float3;
+
+    fn div(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self / rhs.x,
+            y: self / rhs.y,
+            z: self / rhs.z,
+        }
+    }
+}
+
+impl Div<Float3> for &f32 {
+    type Output = Float3;
+
+    fn div(self, rhs: Float3) -> Self::Output {
+        Float3 {
+            x: self / rhs.x,
+            y: self / rhs.y,
+            z: self / rhs.z,
+        }
+    }
+}
+
+impl Div<&Float3> for f32 {
+    type Output = Float3;
+
+    fn div(self, rhs: &Float3) -> Self::Output {
+        Float3 {
+            x: self / rhs.x,
+            y: self / rhs.y,
+            z: self / rhs.z,
+        }
+    }
+}
+
+impl<'a, 'b> Div<&'a Float3> for &'b f32 {
+    type Output = Float3;
+
+    fn div(self, rhs: &'a Float3) -> Self::Output {
+        Float3 {
+            x: self / rhs.x,
+            y: self / rhs.y,
+            z: self / rhs.z,
         }
     }
 }
@@ -2667,4 +2760,24 @@ pub fn point_in_triangle(a: Float2, b: Float2, c: Float2, p: Float2) -> Option<F
     } else {
         None
     }
+}
+
+pub fn barycentric_coords(a: Float2, b: Float2, c: Float2, p: Float2) -> Option<Float3> {
+    let (v0, v1, v2) = (b - a, c - a, p - a);
+    let d00 = v0.dot(v0);
+    let d01 = v0.dot(v1);
+    let d11 = v1.dot(v1);
+    let d20 = v2.dot(v0);
+    let d21 = v2.dot(v1);
+    let denom = d00 * d11 - d01 * d01;
+    if denom.abs() <= f32::EPSILON {
+        None
+    } else {
+        let v = (d11 * d20 - d01 * d21) / denom;
+        let w = (d00 * d21 - d01 * d20) / denom;
+        let u = 1.0 - v - w;
+
+        Some(Float3::new(u, v, w))
+    }
+
 }
