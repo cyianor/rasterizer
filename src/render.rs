@@ -67,19 +67,19 @@ impl RenderTarget {
                     RasterizerPoint {
                         screen_pos: a,
                         texture_coords: uv_a,
-                        normal: _n_a,
+                        normal: n_a,
                         depth: a_z,
                     },
                     RasterizerPoint {
                         screen_pos: b,
                         texture_coords: uv_b,
-                        normal: _n_b,
+                        normal: n_b,
                         depth: b_z,
                     },
                     RasterizerPoint {
                         screen_pos: c,
                         texture_coords: uv_c,
-                        normal: _n_c,
+                        normal: n_c,
                         depth: c_z,
                     },
                 ) = (chunk[0], chunk[1], chunk[2]);
@@ -113,9 +113,10 @@ impl RenderTarget {
                             }
 
                             let uv = (uv_a / a_z * weights.x + uv_b / b_z * weights.y + uv_c / c_z * weights.z) * depth;
+                            let normal = (n_a / a_z * weights.x + n_b / b_z * weights.y + n_c / c_z * weights.z) * depth;
 
                             self.color_buffer[y * self.width + x] =
-                                model.shader.color(Some(uv), None);
+                                model.shader.color(uv, normal);
                             self.depth_buffer[y * self.width + x] = depth;
                         }
                     }
@@ -200,37 +201,40 @@ fn subdivide_partial_oob_triangles(
                     view_to_screen(vertices_view[2], &camera, size),
                 );
 
-                let normals_view = [
-                    world_to_view(
-                        model_to_world(Float4::from_vector(normals[0]), &model.transform),
-                        &camera,
-                    ),
-                    world_to_view(
-                        model_to_world(Float4::from_vector(normals[1]), &model.transform),
-                        &camera,
-                    ),
-                    world_to_view(
-                        model_to_world(Float4::from_vector(normals[2]), &model.transform),
-                        &camera,
-                    ),
-                ];
+                // let normals_view = [
+                //     world_to_view(
+                //         model_to_world(Float4::from_vector(normals[0]), &model.transform),
+                //         &camera,
+                //     ),
+                //     world_to_view(
+                //         model_to_world(Float4::from_vector(normals[1]), &model.transform),
+                //         &camera,
+                //     ),
+                //     world_to_view(
+                //         model_to_world(Float4::from_vector(normals[2]), &model.transform),
+                //         &camera,
+                //     ),
+                // ];
 
                 rasterizer_points.push(RasterizerPoint::new(
                     a_screen,
                     texture_coords[0],
-                    normals_view[0].xyz(),
+                    // normals_view[0].xyz(),
+                    normals[0],
                     a_z,
                 ));
                 rasterizer_points.push(RasterizerPoint::new(
                     b_screen,
                     texture_coords[1],
-                    normals_view[1].xyz(),
+                    // normals_view[1].xyz(),
+                    normals[1],
                     b_z,
                 ));
                 rasterizer_points.push(RasterizerPoint::new(
                     c_screen,
                     texture_coords[2],
-                    normals_view[2].xyz(),
+                    // normals_view[2].xyz(),
+                    normals[2],
                     c_z,
                 ));
             }

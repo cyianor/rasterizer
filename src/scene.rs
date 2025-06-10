@@ -1,8 +1,8 @@
 use crate::camera::Camera;
 use crate::math::Float3;
-use crate::render::RenderTarget;
 use crate::model::{Model, read_obj_file};
-use crate::shader::{TextureShader, DiffuseShader};
+use crate::render::RenderTarget;
+use crate::shader::{DiffuseShader, TextureShader};
 use crate::texture::Texture;
 use crate::transform::Transform;
 use raylib::RaylibHandle;
@@ -41,9 +41,10 @@ impl Scene {
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), Float3::ones());
 
-        // let shader = DiffuseShader::new(Float3::new(1.0, 0.0, 0.0));
-                let texture = Texture::from_png("models/checker-map_tho.png");
-        let shader = TextureShader::new(texture);
+        let shader = DiffuseShader::new(
+            Float3::new(1.0, 0.0, 0.0),
+            Float3::new(1.0, 5.0, 0.0).normalized(),
+        );
 
         scene.models.push(Model::new(
             vertices,
@@ -58,7 +59,10 @@ impl Scene {
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 4.0, 0.0), Float3::ones());
 
-        let shader = DiffuseShader::new(Float3::new(0.0, 1.0, 0.0));
+        let shader = DiffuseShader::new(
+            Float3::new(0.0, 1.0, 0.0),
+            Float3::new(1.0, 5.0, 0.0).normalized(),
+        );
 
         scene.models.push(Model::new(
             vertices,
@@ -70,9 +74,9 @@ impl Scene {
 
         let (vertices, texture_coords, normals) =
             read_obj_file("models/floor.obj", true, true).unwrap();
-        
+
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), Float3::ones());
-        
+
         let texture = Texture::from_png("models/checker-map_tho.png");
         let shader = TextureShader::new(texture);
 

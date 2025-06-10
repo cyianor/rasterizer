@@ -1,5 +1,4 @@
 use crate::math::{Float2, Float3};
-use image::ImageReader;
 use png::{ColorType, Decoder};
 use std::fs::File;
 
