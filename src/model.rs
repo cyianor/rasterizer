@@ -81,11 +81,6 @@ pub fn read_obj_file(
                 if i >= 3 {
                     vertices.push(vertices[vertices.len() - (3 * i - 6)]);
                     vertices.push(vertices[vertices.len() - 2]);
-
-                    if parse_normals {
-                        normals.push(normals[normals.len() - (3 * i - 6)]);
-                        normals.push(normals[normals.len() - 2]);
-                    }
                 }
                 vertices.push(vs[indices[0].as_ref().unwrap() - 1]);
 
