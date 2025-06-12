@@ -43,7 +43,8 @@ impl Scene {
 
         let shader = DiffuseShader::new(
             Float3::new(1.0, 0.0, 0.0),
-            Float3::new(10.0, 10.0, 0.0).normalized(),
+            Float3::new(1.0, 1.0, 0.0).normalized(),
+            0.2,
         );
 
         scene.models.push(Model::new(
@@ -61,7 +62,8 @@ impl Scene {
 
         let shader = DiffuseShader::new(
             Float3::new(0.0, 1.0, 0.0),
-            Float3::new(10.0, 10.0, 0.0).normalized(),
+            Float3::new(1.0, 1.0, 0.0).normalized(),
+            0.2,
         );
 
         scene.models.push(Model::new(

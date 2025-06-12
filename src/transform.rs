@@ -19,9 +19,29 @@ impl Transform {
         }
     }
 
+    pub fn from_vectors(position: Float3, target: Float3, up: Float3, scale: Float3) -> Self {
+        let fwd = (position - target).normalized();
+        let right = up.cross(fwd).normalized();
+        let up = fwd.cross(right);
+
+        // rows of rotation matrix right, up, fwd
+        let yaw = (-fwd.x).atan2(fwd.z);
+        let pitch = fwd.y.asin();
+        let roll = (-right.y).atan2(up.y);
+
+        Self::new(yaw, pitch, roll, position, scale)
+    }
+
     pub fn to_world_point(&self, p: Float4) -> Float4 {
-        let rot = self.get_inverse_rotation();
-        (rot * p) * Float4::from_point(self.scale) + Float4::from_vector(self.position)
+        // let rot = self.get_inverse_rotation();
+        // (rot * p) * Float4::from_point(self.scale) + Float4::from_vector(self.position)
+        self.world_matrix() * p
+    }
+
+    pub fn world_matrix(&self) -> Float4x4 {
+        Float4x4::translation(self.position)
+            * Float4x4::scaling(self.scale)
+            * self.get_inverse_rotation()
     }
 
     pub fn to_local_point(&self, p: Float4) -> Float4 {
@@ -31,8 +51,8 @@ impl Transform {
 
     pub fn get_rotation(&self) -> Float4x4 {
         Float4x4::rotation_z(self.roll)
-        * Float4x4::rotation_x(self.pitch)
-        * Float4x4::rotation_y(self.yaw)
+            * Float4x4::rotation_x(self.pitch)
+            * Float4x4::rotation_y(self.yaw)
     }
 
     pub fn get_inverse_rotation(&self) -> Float4x4 {

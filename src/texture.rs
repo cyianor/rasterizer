@@ -2,14 +2,14 @@ use crate::math::{Float2, Float3};
 use png::{ColorType, Decoder};
 use std::fs::File;
 
-pub struct Texture {
-    pub width: u32,
-    pub height: u32,
-    pub image: Vec<Float3>,
+pub struct Texture<T> {
+    pub width: usize,
+    pub height: usize,
+    pub image: Vec<T>,
 }
 
-impl Texture {
-    pub fn from_png(path: &str) -> Texture {
+impl Texture<Float3> {
+    pub fn from_png(path: &str) -> Texture<Float3> {
         let decoder = Decoder::new(File::open(path).unwrap());
         let mut reader = decoder.read_info().unwrap();
         // Allocate and read to buffer
@@ -40,28 +40,24 @@ impl Texture {
             }
         };
 
-        // let img = ImageReader::open(path).unwrap().decode().unwrap();
-
-        // Texture {
-        //     width: img.width(),
-        //     height: img.height(),
-        //     image: img.
-        //     image: img
-        //         .as_rgb32f()
-        //         .unwrap()
-        //         .enumerate_pixels()
-        //         .map(|(x, y, c)| Float3::new(c.0[0], c.0[1], c.0[2]))
-        //         .collect::<Vec<_>>(),
-        // }
-
         Texture {
-            width: info.width,
-            height: info.height,
+            width: info.width as usize,
+            height: info.height as usize,
             image,
         }
     }
+}
 
-    pub fn sample(&self, texture_coord: Float2) -> Float3 {
+impl<T: Copy> Texture<T> {
+    pub fn new(width: usize, height: usize) -> Texture<T> {
+        Texture {
+            width,
+            height,
+            image: Vec::with_capacity(width * height),
+        }
+    }
+    
+    pub fn sample(&self, texture_coord: Float2) -> T {
         let x = (texture_coord.x.clamp(0.0, 1.0) * (self.width as f32 - 1.0)).round() as usize;
         let y = (texture_coord.y.clamp(0.0, 1.0) * (self.height as f32 - 1.0)).round() as usize;
 

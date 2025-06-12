@@ -1446,7 +1446,6 @@ impl<'a, 'b> Div<&'a f32> for &'b Float3 {
     }
 }
 
-
 impl Div<Float3> for f32 {
     type Output = Float3;
 
@@ -2516,6 +2515,30 @@ impl Float4x4 {
         )
     }
 
+    pub fn perspective_projection(near: f32, far: f32, left: f32, right: f32, top: f32, bottom: f32) -> Self {
+        Self::new(
+            Float4::new(
+                2.0 * near / (right - left),
+                0.0,
+                -(right + left) / (right - left),
+                0.0,
+            ),
+            Float4::new(
+                0.0,
+                2.0 * near / (top - bottom),
+                -(top + bottom) / (top - bottom),
+                0.0,
+            ),
+            Float4::new(
+                0.0,
+                0.0,
+                (far + near) / (far - near),
+                -2.0 * far * near / (far - near),
+            ),
+            Float4::new(0.0, 0.0, 1.0, 0.0),
+        )
+    }
+
     pub fn transpose(&self) -> Self {
         Self::new(
             Float4::new(self.r1.x, self.r2.x, self.r3.x, self.r4.x),
@@ -2779,5 +2802,4 @@ pub fn barycentric_coords(a: Float2, b: Float2, c: Float2, p: Float2) -> Option<
 
         Some(Float3::new(u, v, w))
     }
-
 }

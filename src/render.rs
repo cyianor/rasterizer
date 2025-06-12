@@ -141,6 +141,18 @@ impl RenderTarget {
             }
         }
     }
+
+    pub fn depth_buffer_to_byte_array(&self, bytes: &mut Vec<u8>) {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let c = -1.0 / self.depth_buffer[y * self.width + x];
+                bytes[(y * self.width + x) * 4 + 1] = c.clamp(0.0, 255.0) as u8;
+                bytes[(y * self.width + x) * 4 + 0] = c.clamp(0.0, 255.0) as u8;
+                bytes[(y * self.width + x) * 4 + 2] = c.clamp(0.0, 255.0) as u8;
+                bytes[(y * self.width + x) * 4 + 3] = 255;
+            }
+        }
+    }
 }
 
 fn model_to_world(vertex: Float4, transform: &Transform) -> Float4 {
@@ -198,13 +210,13 @@ fn subdivide_partial_oob_triangles(
         let clip_2 = vertices_view[2].z >= camera.near;
         let clip_count = clip_0 as usize + clip_1 as usize + clip_2 as usize;
 
-        let m_rot = camera.transform.get_rotation() * model.transform.get_inverse_rotation();
+        let m_rot = model.transform.get_inverse_rotation();
         let normals = [
             &m_rot * Float4::from_vector(normals[0]),
             &m_rot * Float4::from_vector(normals[1]),
             &m_rot * Float4::from_vector(normals[2]),
         ];
-
+       
         match clip_count {
             0 => {
                 let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
@@ -212,21 +224,6 @@ fn subdivide_partial_oob_triangles(
                     view_to_screen(vertices_view[1], &camera, size),
                     view_to_screen(vertices_view[2], &camera, size),
                 );
-
-                // let normals = [
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[0]), &model.transform),
-                //         &camera,
-                //     ),
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[1]), &model.transform),
-                //         &camera,
-                //     ),
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[2]), &model.transform),
-                //         &camera,
-                //     ),
-                // ];
 
                 rasterizer_points.push(RasterizerPoint::new(
                     a_screen,
@@ -270,21 +267,6 @@ fn subdivide_partial_oob_triangles(
 
                 let uv_a = texture_coords[idx_clip].lerp(texture_coords[idx_next], frac_a);
                 let uv_b = texture_coords[idx_clip].lerp(texture_coords[idx_prev], frac_b);
-
-                // let normals = [
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[0]), &model.transform),
-                //         &camera,
-                //     ),
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[1]), &model.transform),
-                //         &camera,
-                //     ),
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[2]), &model.transform),
-                //         &camera,
-                //     ),
-                // ];
 
                 let normal_a = normals[idx_clip].lerp(normals[idx_next], frac_a);
                 let normal_b = normals[idx_clip].lerp(normals[idx_prev], frac_b);
@@ -347,21 +329,6 @@ fn subdivide_partial_oob_triangles(
 
                 let uv_a = texture_coords[idx_non_clip].lerp(texture_coords[idx_next], frac_a);
                 let uv_b = texture_coords[idx_non_clip].lerp(texture_coords[idx_prev], frac_b);
-
-                // let normals = [
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[0]), &model.transform),
-                //         &camera,
-                //     ),
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[1]), &model.transform),
-                //         &camera,
-                //     ),
-                //     world_to_view(
-                //         model_to_world(Float4::from_vector(normals[2]), &model.transform),
-                //         &camera,
-                //     ),
-                // ];
 
                 let normal_a = normals[idx_non_clip].lerp(normals[idx_next], frac_a);
                 let normal_b = normals[idx_non_clip].lerp(normals[idx_prev], frac_b);

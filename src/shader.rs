@@ -6,11 +6,11 @@ pub trait Shader {
 }
 
 pub struct TextureShader {
-    pub texture: Texture,
+    pub texture: Texture<Float3>,
 }
 
 impl TextureShader {
-    pub fn new(texture: Texture) -> Self {
+    pub fn new(texture: Texture<Float3>) -> Self {
         TextureShader { texture }
     }
 }
@@ -24,11 +24,12 @@ impl Shader for TextureShader {
 pub struct DiffuseShader {
     pub color: Float3,
     pub direction_to_light: Float3,
+    pub ambient_factor: f32,
 }
 
 impl DiffuseShader {
-    pub fn new(color: Float3, direction_to_light: Float3) -> Self {
-        DiffuseShader { color, direction_to_light }
+    pub fn new(color: Float3, direction_to_light: Float3, ambient_factor: f32) -> Self {
+        DiffuseShader { color, direction_to_light, ambient_factor }
     }
 }
 
@@ -37,6 +38,6 @@ impl Shader for DiffuseShader {
         let normal = normal.normalized();
         let light_intensity = normal.dot(self.direction_to_light).max(0.0);
         // (normal + 1.0) * 0.5
-        Float3::ones() * light_intensity
+        self.color * (self.ambient_factor + light_intensity)
     }
 }
