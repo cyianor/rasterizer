@@ -45,8 +45,15 @@ impl Transform {
     }
 
     pub fn to_local_point(&self, p: Float4) -> Float4 {
-        let rot = self.get_rotation();
-        rot * ((p - Float4::from_vector(self.position)) / Float4::from_point(self.scale))
+        // let rot = self.get_rotation();
+        // rot * ((p - Float4::from_vector(self.position)) / Float4::from_point(self.scale))
+        self.inverse_world_matrix() * p
+    }
+
+    pub fn inverse_world_matrix(&self) -> Float4x4 {
+        self.get_rotation()
+            * Float4x4::scaling(1.0 / self.scale)
+            * Float4x4::translation(-self.position)
     }
 
     pub fn get_rotation(&self) -> Float4x4 {
