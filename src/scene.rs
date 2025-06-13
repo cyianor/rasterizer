@@ -26,7 +26,7 @@ impl Scene {
                 Float3::new(0.0, 1.0, 0.0),
                 60f32.to_radians(),
                 aspect_ratio,
-                -1.0,
+                -0.1,
                 -100.0,
             ),
             models: Vec::new(),

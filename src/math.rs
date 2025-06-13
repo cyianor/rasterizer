@@ -2515,7 +2515,14 @@ impl Float4x4 {
         )
     }
 
-    pub fn perspective_projection(near: f32, far: f32, left: f32, right: f32, top: f32, bottom: f32) -> Self {
+    pub fn perspective_projection(
+        near: f32,
+        far: f32,
+        left: f32,
+        right: f32,
+        top: f32,
+        bottom: f32,
+    ) -> Self {
         Self::new(
             Float4::new(
                 2.0 * near / (right - left),
@@ -2642,7 +2649,250 @@ impl Mul for Float4x4 {
     type Output = Float4x4;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Self {
+        Float4x4 {
+            r1: Float4::new(
+                self.r1.x * rhs.r1.x
+                    + self.r1.y * rhs.r2.x
+                    + self.r1.z * rhs.r3.x
+                    + self.r1.w * rhs.r4.x,
+                self.r1.x * rhs.r1.y
+                    + self.r1.y * rhs.r2.y
+                    + self.r1.z * rhs.r3.y
+                    + self.r1.w * rhs.r4.y,
+                self.r1.x * rhs.r1.z
+                    + self.r1.y * rhs.r2.z
+                    + self.r1.z * rhs.r3.z
+                    + self.r1.w * rhs.r4.z,
+                self.r1.x * rhs.r1.w
+                    + self.r1.y * rhs.r2.w
+                    + self.r1.z * rhs.r3.w
+                    + self.r1.w * rhs.r4.w,
+            ),
+            r2: Float4::new(
+                self.r2.x * rhs.r1.x
+                    + self.r2.y * rhs.r2.x
+                    + self.r2.z * rhs.r3.x
+                    + self.r2.w * rhs.r4.x,
+                self.r2.x * rhs.r1.y
+                    + self.r2.y * rhs.r2.y
+                    + self.r2.z * rhs.r3.y
+                    + self.r2.w * rhs.r4.y,
+                self.r2.x * rhs.r1.z
+                    + self.r2.y * rhs.r2.z
+                    + self.r2.z * rhs.r3.z
+                    + self.r2.w * rhs.r4.z,
+                self.r2.x * rhs.r1.w
+                    + self.r2.y * rhs.r2.w
+                    + self.r2.z * rhs.r3.w
+                    + self.r2.w * rhs.r4.w,
+            ),
+            r3: Float4::new(
+                self.r3.x * rhs.r1.x
+                    + self.r3.y * rhs.r2.x
+                    + self.r3.z * rhs.r3.x
+                    + self.r3.w * rhs.r4.x,
+                self.r3.x * rhs.r1.y
+                    + self.r3.y * rhs.r2.y
+                    + self.r3.z * rhs.r3.y
+                    + self.r3.w * rhs.r4.y,
+                self.r3.x * rhs.r1.z
+                    + self.r3.y * rhs.r2.z
+                    + self.r3.z * rhs.r3.z
+                    + self.r3.w * rhs.r4.z,
+                self.r3.x * rhs.r1.w
+                    + self.r3.y * rhs.r2.w
+                    + self.r3.z * rhs.r3.w
+                    + self.r3.w * rhs.r4.w,
+            ),
+            r4: Float4::new(
+                self.r4.x * rhs.r1.x
+                    + self.r4.y * rhs.r2.x
+                    + self.r4.z * rhs.r3.x
+                    + self.r4.w * rhs.r4.x,
+                self.r4.x * rhs.r1.y
+                    + self.r4.y * rhs.r2.y
+                    + self.r4.z * rhs.r3.y
+                    + self.r4.w * rhs.r4.y,
+                self.r4.x * rhs.r1.z
+                    + self.r4.y * rhs.r2.z
+                    + self.r4.z * rhs.r3.z
+                    + self.r4.w * rhs.r4.z,
+                self.r4.x * rhs.r1.w
+                    + self.r4.y * rhs.r2.w
+                    + self.r4.z * rhs.r3.w
+                    + self.r4.w * rhs.r4.w,
+            ),
+        }
+    }
+}
+
+impl Mul<Float4x4> for &Float4x4 {
+    type Output = Float4x4;
+
+    fn mul(self, rhs: Float4x4) -> Self::Output {
+        Float4x4 {
+            r1: Float4::new(
+                self.r1.x * rhs.r1.x
+                    + self.r1.y * rhs.r2.x
+                    + self.r1.z * rhs.r3.x
+                    + self.r1.w * rhs.r4.x,
+                self.r1.x * rhs.r1.y
+                    + self.r1.y * rhs.r2.y
+                    + self.r1.z * rhs.r3.y
+                    + self.r1.w * rhs.r4.y,
+                self.r1.x * rhs.r1.z
+                    + self.r1.y * rhs.r2.z
+                    + self.r1.z * rhs.r3.z
+                    + self.r1.w * rhs.r4.z,
+                self.r1.x * rhs.r1.w
+                    + self.r1.y * rhs.r2.w
+                    + self.r1.z * rhs.r3.w
+                    + self.r1.w * rhs.r4.w,
+            ),
+            r2: Float4::new(
+                self.r2.x * rhs.r1.x
+                    + self.r2.y * rhs.r2.x
+                    + self.r2.z * rhs.r3.x
+                    + self.r2.w * rhs.r4.x,
+                self.r2.x * rhs.r1.y
+                    + self.r2.y * rhs.r2.y
+                    + self.r2.z * rhs.r3.y
+                    + self.r2.w * rhs.r4.y,
+                self.r2.x * rhs.r1.z
+                    + self.r2.y * rhs.r2.z
+                    + self.r2.z * rhs.r3.z
+                    + self.r2.w * rhs.r4.z,
+                self.r2.x * rhs.r1.w
+                    + self.r2.y * rhs.r2.w
+                    + self.r2.z * rhs.r3.w
+                    + self.r2.w * rhs.r4.w,
+            ),
+            r3: Float4::new(
+                self.r3.x * rhs.r1.x
+                    + self.r3.y * rhs.r2.x
+                    + self.r3.z * rhs.r3.x
+                    + self.r3.w * rhs.r4.x,
+                self.r3.x * rhs.r1.y
+                    + self.r3.y * rhs.r2.y
+                    + self.r3.z * rhs.r3.y
+                    + self.r3.w * rhs.r4.y,
+                self.r3.x * rhs.r1.z
+                    + self.r3.y * rhs.r2.z
+                    + self.r3.z * rhs.r3.z
+                    + self.r3.w * rhs.r4.z,
+                self.r3.x * rhs.r1.w
+                    + self.r3.y * rhs.r2.w
+                    + self.r3.z * rhs.r3.w
+                    + self.r3.w * rhs.r4.w,
+            ),
+            r4: Float4::new(
+                self.r4.x * rhs.r1.x
+                    + self.r4.y * rhs.r2.x
+                    + self.r4.z * rhs.r3.x
+                    + self.r4.w * rhs.r4.x,
+                self.r4.x * rhs.r1.y
+                    + self.r4.y * rhs.r2.y
+                    + self.r4.z * rhs.r3.y
+                    + self.r4.w * rhs.r4.y,
+                self.r4.x * rhs.r1.z
+                    + self.r4.y * rhs.r2.z
+                    + self.r4.z * rhs.r3.z
+                    + self.r4.w * rhs.r4.z,
+                self.r4.x * rhs.r1.w
+                    + self.r4.y * rhs.r2.w
+                    + self.r4.z * rhs.r3.w
+                    + self.r4.w * rhs.r4.w,
+            ),
+        }
+    }
+}
+
+impl Mul<&Float4x4> for Float4x4 {
+    type Output = Float4x4;
+
+    fn mul(self, rhs: &Float4x4) -> Self::Output {
+        Float4x4 {
+            r1: Float4::new(
+                self.r1.x * rhs.r1.x
+                    + self.r1.y * rhs.r2.x
+                    + self.r1.z * rhs.r3.x
+                    + self.r1.w * rhs.r4.x,
+                self.r1.x * rhs.r1.y
+                    + self.r1.y * rhs.r2.y
+                    + self.r1.z * rhs.r3.y
+                    + self.r1.w * rhs.r4.y,
+                self.r1.x * rhs.r1.z
+                    + self.r1.y * rhs.r2.z
+                    + self.r1.z * rhs.r3.z
+                    + self.r1.w * rhs.r4.z,
+                self.r1.x * rhs.r1.w
+                    + self.r1.y * rhs.r2.w
+                    + self.r1.z * rhs.r3.w
+                    + self.r1.w * rhs.r4.w,
+            ),
+            r2: Float4::new(
+                self.r2.x * rhs.r1.x
+                    + self.r2.y * rhs.r2.x
+                    + self.r2.z * rhs.r3.x
+                    + self.r2.w * rhs.r4.x,
+                self.r2.x * rhs.r1.y
+                    + self.r2.y * rhs.r2.y
+                    + self.r2.z * rhs.r3.y
+                    + self.r2.w * rhs.r4.y,
+                self.r2.x * rhs.r1.z
+                    + self.r2.y * rhs.r2.z
+                    + self.r2.z * rhs.r3.z
+                    + self.r2.w * rhs.r4.z,
+                self.r2.x * rhs.r1.w
+                    + self.r2.y * rhs.r2.w
+                    + self.r2.z * rhs.r3.w
+                    + self.r2.w * rhs.r4.w,
+            ),
+            r3: Float4::new(
+                self.r3.x * rhs.r1.x
+                    + self.r3.y * rhs.r2.x
+                    + self.r3.z * rhs.r3.x
+                    + self.r3.w * rhs.r4.x,
+                self.r3.x * rhs.r1.y
+                    + self.r3.y * rhs.r2.y
+                    + self.r3.z * rhs.r3.y
+                    + self.r3.w * rhs.r4.y,
+                self.r3.x * rhs.r1.z
+                    + self.r3.y * rhs.r2.z
+                    + self.r3.z * rhs.r3.z
+                    + self.r3.w * rhs.r4.z,
+                self.r3.x * rhs.r1.w
+                    + self.r3.y * rhs.r2.w
+                    + self.r3.z * rhs.r3.w
+                    + self.r3.w * rhs.r4.w,
+            ),
+            r4: Float4::new(
+                self.r4.x * rhs.r1.x
+                    + self.r4.y * rhs.r2.x
+                    + self.r4.z * rhs.r3.x
+                    + self.r4.w * rhs.r4.x,
+                self.r4.x * rhs.r1.y
+                    + self.r4.y * rhs.r2.y
+                    + self.r4.z * rhs.r3.y
+                    + self.r4.w * rhs.r4.y,
+                self.r4.x * rhs.r1.z
+                    + self.r4.y * rhs.r2.z
+                    + self.r4.z * rhs.r3.z
+                    + self.r4.w * rhs.r4.z,
+                self.r4.x * rhs.r1.w
+                    + self.r4.y * rhs.r2.w
+                    + self.r4.z * rhs.r3.w
+                    + self.r4.w * rhs.r4.w,
+            ),
+        }
+    }
+}
+
+impl<'a, 'b> Mul<&'a Float4x4> for &'b Float4x4 {
+    type Output = Float4x4;
+
+    fn mul(self, rhs: &'a Float4x4) -> Self::Output {
+        Float4x4 {
             r1: Float4::new(
                 self.r1.x * rhs.r1.x
                     + self.r1.y * rhs.r2.x

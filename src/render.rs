@@ -1,10 +1,9 @@
 use core::f32;
 
 use crate::camera::Camera;
-use crate::math::{Float2, Float3, Float4, point_in_triangle};
+use crate::math::{Float2, Float3, Float4, point_in_triangle, signed_triangle_area};
 use crate::model::Model;
 use crate::scene::Scene;
-use crate::transform::Transform;
 
 #[derive(Debug, Clone, Copy)]
 struct RasterizerPoint {
@@ -84,7 +83,11 @@ impl RenderTarget {
                     },
                 ) = (chunk[0], chunk[1], chunk[2]);
 
-                // let depths = (1.0 + Float3::new(a_z, b_z, c_z)) * 0.5;
+                // Back-face culling
+                if signed_triangle_area(a, b, c) < 0.0 {
+                    continue;
+                }
+
                 let inverse_depths = 1.0 / Float3::new(a_z, b_z, c_z);
 
                 // Determine chunk bounding box
@@ -155,27 +158,11 @@ impl RenderTarget {
     }
 }
 
-fn model_to_world(vertex: Float4, transform: &Transform) -> Float4 {
-    transform.to_world_point(vertex)
-}
-
-fn world_to_view(vertex: Float4, camera: &Camera) -> Float4 {
-    camera.transform.to_local_point(vertex)
-}
-
-fn view_to_screen(vertex: Float4, camera: &Camera, size: Float2) -> (Float2, f32) {
-    // Perspective projection
-    let mut vertex_persp = &camera.projection * vertex;
-    // Make vector homogeneous again
-    vertex_persp /= vertex_persp.w;
-
-    // Non-invertible projection onto screen space
-    let vertex_screen = Float2::new(
-        (vertex_persp.x + 1.0) * 0.5 * size.x,
-        (1.0 - (vertex_persp.y + 1.0) * 0.5) * size.y,
-    );
-
-    (vertex_screen, vertex.z)
+fn ndc_to_screen(vertex: Float3, size: Float2) -> Float2 {
+    Float2::new(
+        (vertex.x + 1.0) * 0.5 * size.x,
+        (1.0 - (vertex.y + 1.0) * 0.5) * size.y,
+    )
 }
 
 fn subdivide_partial_oob_triangles(
@@ -183,6 +170,11 @@ fn subdivide_partial_oob_triangles(
     camera: &Camera,
     size: Float2,
 ) -> Vec<RasterizerPoint> {
+    let world_rotation_matrix = model.transform.get_inverse_rotation();
+    let transformation = &camera.projection
+        * camera.transform.inverse_world_matrix()
+        * model.transform.world_matrix();
+
     let mut rasterizer_points: Vec<RasterizerPoint> = Vec::new();
     for ((vertices, texture_coords), normals) in model
         .triangle_points
@@ -190,58 +182,69 @@ fn subdivide_partial_oob_triangles(
         .zip(model.texture_coords.chunks_exact(3))
         .zip(model.normals.chunks_exact(3))
     {
-        let vertices_view = [
-            world_to_view(
-                model_to_world(Float4::from_point(vertices[0]), &model.transform),
-                &camera,
-            ),
-            world_to_view(
-                model_to_world(Float4::from_point(vertices[1]), &model.transform),
-                &camera,
-            ),
-            world_to_view(
-                model_to_world(Float4::from_point(vertices[2]), &model.transform),
-                &camera,
-            ),
+        let vertices = [
+            &transformation * Float4::from_point(vertices[0]),
+            &transformation * Float4::from_point(vertices[1]),
+            &transformation * Float4::from_point(vertices[2]),
         ];
 
-        let clip_0 = vertices_view[0].z >= camera.near;
-        let clip_1 = vertices_view[1].z >= camera.near;
-        let clip_2 = vertices_view[2].z >= camera.near;
+        // Frustrum Culling
+        let cull_0 = (((vertices[0].w >= 0.0) as u8) << 6)
+            + (((vertices[0].x + vertices[0].w >= 0.0) as u8) << 5)
+            + (((vertices[0].x - vertices[0].w <= 0.0) as u8) << 4)
+            + (((vertices[0].y + vertices[0].w >= 0.0) as u8) << 3)
+            + (((vertices[0].y - vertices[0].w <= 0.0) as u8) << 2)
+            + (((vertices[0].z + vertices[0].w >= 0.0) as u8) << 1)
+            + ((vertices[0].z - vertices[0].w <= 0.0) as u8);
+        let cull_1 = (((vertices[1].w >= 0.0) as u8) << 6)
+            + (((vertices[1].x + vertices[1].w >= 0.0) as u8) << 5)
+            + (((vertices[1].x - vertices[1].w <= 0.0) as u8) << 4)
+            + (((vertices[1].y + vertices[1].w >= 0.0) as u8) << 3)
+            + (((vertices[1].y - vertices[1].w <= 0.0) as u8) << 2)
+            + (((vertices[1].z + vertices[1].w >= 0.0) as u8) << 1)
+            + ((vertices[1].z - vertices[1].w <= 0.0) as u8);
+        let cull_2 = (((vertices[2].w >= 0.0) as u8) << 6)
+            + (((vertices[2].x + vertices[2].w >= 0.0) as u8) << 5)
+            + (((vertices[2].x - vertices[2].w <= 0.0) as u8) << 4)
+            + (((vertices[2].y + vertices[2].w >= 0.0) as u8) << 3)
+            + (((vertices[2].y - vertices[2].w <= 0.0) as u8) << 2)
+            + (((vertices[2].z + vertices[2].w >= 0.0) as u8) << 1)
+            + ((vertices[2].z - vertices[2].w <= 0.0) as u8);
+        if (cull_0 & cull_1 & cull_2) > 0 {
+            continue;
+        }
+
+        // Near plane clipping
+        let clip_0 = vertices[0].w >= 0.0 || vertices[0].z + vertices[0].w >= 0.0;
+        let clip_1 = vertices[1].w >= 0.0 || vertices[1].z + vertices[1].w >= 0.0;
+        let clip_2 = vertices[2].w >= 0.0 || vertices[2].z + vertices[2].w >= 0.0;
         let clip_count = clip_0 as usize + clip_1 as usize + clip_2 as usize;
 
-        let m_rot = model.transform.get_inverse_rotation();
         let normals = [
-            &m_rot * Float4::from_vector(normals[0]),
-            &m_rot * Float4::from_vector(normals[1]),
-            &m_rot * Float4::from_vector(normals[2]),
+            (&world_rotation_matrix * Float4::from_vector(normals[0])).xyz(),
+            (&world_rotation_matrix * Float4::from_vector(normals[1])).xyz(),
+            (&world_rotation_matrix * Float4::from_vector(normals[2])).xyz(),
         ];
-       
+
         match clip_count {
             0 => {
-                let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                    view_to_screen(vertices_view[0], &camera, size),
-                    view_to_screen(vertices_view[1], &camera, size),
-                    view_to_screen(vertices_view[2], &camera, size),
-                );
-
                 rasterizer_points.push(RasterizerPoint::new(
-                    a_screen,
+                    ndc_to_screen(vertices[0].xyz() / vertices[0].w, size),
                     texture_coords[0],
-                    normals[0].xyz(),
-                    a_z,
+                    normals[0],
+                    vertices[0].w,
                 ));
                 rasterizer_points.push(RasterizerPoint::new(
-                    b_screen,
+                    ndc_to_screen(vertices[1].xyz() / vertices[1].w, size),
                     texture_coords[1],
-                    normals[1].xyz(),
-                    b_z,
+                    normals[1],
+                    vertices[1].w,
                 ));
                 rasterizer_points.push(RasterizerPoint::new(
-                    c_screen,
+                    ndc_to_screen(vertices[2].xyz() / vertices[2].w, size),
                     texture_coords[2],
-                    normals[2].xyz(),
-                    c_z,
+                    normals[2],
+                    vertices[2].w,
                 ));
             }
             1 => {
@@ -253,13 +256,15 @@ fn subdivide_partial_oob_triangles(
                 };
                 let idx_next = (idx_clip + 1) % 3;
                 let idx_prev = (idx_clip - 1 + 3) % 3;
-                let vertex_clip = vertices_view[idx_clip];
-                let vertex_a = vertices_view[idx_next];
-                let vertex_b = vertices_view[idx_prev];
+                let vertex_clip = vertices[idx_clip];
+                let vertex_a = vertices[idx_next];
+                let vertex_b = vertices[idx_prev];
 
                 // Fraction along triangle edge at which the depth is equal to the clip distance
-                let frac_a = (camera.near - vertex_clip.z) / (vertex_a.z - vertex_clip.z);
-                let frac_b = (camera.near - vertex_clip.z) / (vertex_b.z - vertex_clip.z);
+                let frac_a = (vertex_clip.w + vertex_clip.z)
+                    / ((vertex_clip.w + vertex_clip.z) - (vertex_a.w + vertex_a.z));
+                let frac_b = (vertex_clip.w + vertex_clip.z)
+                    / ((vertex_clip.w + vertex_clip.z) - (vertex_b.w + vertex_b.z));
 
                 // New triangle points in view space
                 let clip_vertex_along_edge_a = vertex_clip.lerp(vertex_a, frac_a);
@@ -273,36 +278,54 @@ fn subdivide_partial_oob_triangles(
 
                 // First new triangle
                 let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                    view_to_screen(clip_vertex_along_edge_b, &camera, size),
-                    view_to_screen(clip_vertex_along_edge_a, &camera, size),
-                    view_to_screen(vertex_b, &camera, size),
+                    (
+                        ndc_to_screen(
+                            clip_vertex_along_edge_b.xyz() / clip_vertex_along_edge_b.w,
+                            size,
+                        ),
+                        clip_vertex_along_edge_b.w,
+                    ),
+                    (
+                        ndc_to_screen(
+                            clip_vertex_along_edge_a.xyz() / clip_vertex_along_edge_a.w,
+                            size,
+                        ),
+                        clip_vertex_along_edge_a.w,
+                    ),
+                    (ndc_to_screen(vertex_b.xyz() / vertex_b.w, size), vertex_b.w),
                 );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_b, normal_b.xyz(), a_z));
-                rasterizer_points.push(RasterizerPoint::new(b_screen, uv_a, normal_a.xyz(), b_z));
+                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_b, normal_b, a_z));
+                rasterizer_points.push(RasterizerPoint::new(b_screen, uv_a, normal_a, b_z));
                 rasterizer_points.push(RasterizerPoint::new(
                     c_screen,
                     texture_coords[idx_prev],
-                    normals[idx_prev].xyz(),
+                    normals[idx_prev],
                     c_z,
                 ));
 
                 // Second new triangle
                 let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                    view_to_screen(clip_vertex_along_edge_a, &camera, size),
-                    view_to_screen(vertex_a, &camera, size),
-                    view_to_screen(vertex_b, &camera, size),
+                    (
+                        ndc_to_screen(
+                            clip_vertex_along_edge_a.xyz() / clip_vertex_along_edge_a.w,
+                            size,
+                        ),
+                        clip_vertex_along_edge_a.w,
+                    ),
+                    (ndc_to_screen(vertex_a.xyz() / vertex_a.w, size), vertex_a.w),
+                    (ndc_to_screen(vertex_b.xyz() / vertex_b.w, size), vertex_b.w),
                 );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_a, normal_a.xyz(), a_z));
+                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_a, normal_a, a_z));
                 rasterizer_points.push(RasterizerPoint::new(
                     b_screen,
                     texture_coords[idx_next],
-                    normals[idx_next].xyz(),
+                    normals[idx_next],
                     b_z,
                 ));
                 rasterizer_points.push(RasterizerPoint::new(
                     c_screen,
                     texture_coords[idx_prev],
-                    normals[idx_prev].xyz(),
+                    normals[idx_prev],
                     c_z,
                 ));
             }
@@ -315,13 +338,15 @@ fn subdivide_partial_oob_triangles(
                 };
                 let idx_next = (idx_non_clip + 1) % 3;
                 let idx_prev = (idx_non_clip - 1 + 3) % 3;
-                let vertex_non_clip = vertices_view[idx_non_clip];
-                let vertex_a = vertices_view[idx_next];
-                let vertex_b = vertices_view[idx_prev];
+                let vertex_non_clip = vertices[idx_non_clip];
+                let vertex_a = vertices[idx_next];
+                let vertex_b = vertices[idx_prev];
 
                 // Fraction along triangle edge at which the depth is equal to the clip distance
-                let frac_a = (camera.near - vertex_non_clip.z) / (vertex_a.z - vertex_non_clip.z);
-                let frac_b = (camera.near - vertex_non_clip.z) / (vertex_b.z - vertex_non_clip.z);
+                let frac_a = (vertex_non_clip.w + vertex_non_clip.z)
+                    / ((vertex_non_clip.w + vertex_non_clip.z) - (vertex_a.w + vertex_a.z));
+                let frac_b = (vertex_non_clip.w + vertex_non_clip.z)
+                    / ((vertex_non_clip.w + vertex_non_clip.z) - (vertex_b.w + vertex_b.z));
 
                 // New triangle points in view space
                 let clip_vertex_along_edge_a = vertex_non_clip.lerp(vertex_a, frac_a);
@@ -335,18 +360,33 @@ fn subdivide_partial_oob_triangles(
 
                 // New triangle
                 let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                    view_to_screen(clip_vertex_along_edge_b, &camera, size),
-                    view_to_screen(vertex_non_clip, &camera, size),
-                    view_to_screen(clip_vertex_along_edge_a, &camera, size),
+                    (
+                        ndc_to_screen(
+                            clip_vertex_along_edge_b.xyz() / clip_vertex_along_edge_b.w,
+                            size,
+                        ),
+                        clip_vertex_along_edge_b.w,
+                    ),
+                    (
+                        ndc_to_screen(vertex_non_clip.xyz() / vertex_non_clip.w, size),
+                        vertex_non_clip.w,
+                    ),
+                    (
+                        ndc_to_screen(
+                            clip_vertex_along_edge_a.xyz() / clip_vertex_along_edge_a.w,
+                            size,
+                        ),
+                        clip_vertex_along_edge_a.w,
+                    ),
                 );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_b, normal_b.xyz(), a_z));
+                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_b, normal_b, a_z));
                 rasterizer_points.push(RasterizerPoint::new(
                     b_screen,
                     texture_coords[idx_non_clip],
-                    normals[idx_non_clip].xyz(),
+                    normals[idx_non_clip],
                     b_z,
                 ));
-                rasterizer_points.push(RasterizerPoint::new(c_screen, uv_a, normal_a.xyz(), c_z));
+                rasterizer_points.push(RasterizerPoint::new(c_screen, uv_a, normal_a, c_z));
             }
             _ => continue,
         }
