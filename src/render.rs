@@ -1,25 +1,21 @@
 use core::f32;
 
-use crate::camera::Camera;
 use crate::math::{Float2, Float3, Float4, point_in_triangle, signed_triangle_area};
-use crate::model::Model;
 use crate::scene::Scene;
+use crate::shader::ModelShader;
 
-#[derive(Debug, Clone, Copy)]
-struct RasterizerPoint {
-    screen_pos: Float2,
-    texture_coords: Float2,
-    normal: Float3,
-    depth: f32,
+struct Triangle {
+    vertices: [Float4; 3],
+    uvs: [Float2; 3],
+    normals: [Float3; 3],
 }
 
-impl RasterizerPoint {
-    fn new(screen_pos: Float2, texture_coords: Float2, normal: Float3, depth: f32) -> Self {
-        RasterizerPoint {
-            screen_pos,
-            texture_coords,
-            normal,
-            depth,
+impl Triangle {
+    pub fn new(vertices: [Float4; 3], uvs: [Float2; 3], normals: [Float3; 3]) -> Self {
+        Self {
+            vertices,
+            uvs,
+            normals,
         }
     }
 }
@@ -42,10 +38,7 @@ impl RenderTarget {
         Self {
             width,
             height,
-            size: Float2 {
-                x: width as f32,
-                y: height as f32,
-            },
+            size: Float2::new(width as f32, height as f32),
             color_buffer,
             depth_buffer,
         }
@@ -58,37 +51,56 @@ impl RenderTarget {
 
     pub fn render(&mut self, scene: &Scene) {
         for model in scene.models.iter() {
-            let rasterizer_points =
-                subdivide_partial_oob_triangles(model, &scene.camera, self.size);
+            let world_rotation_matrix = model.transform.get_inverse_rotation();
+            let transformation = &scene.camera.projection
+                * scene.camera.transform.inverse_world_matrix()
+                * model.transform.world_matrix();
 
-            for chunk in rasterizer_points.chunks_exact(3) {
-                let (
-                    RasterizerPoint {
-                        screen_pos: a,
-                        texture_coords: uv_a,
-                        normal: n_a,
-                        depth: a_z,
-                    },
-                    RasterizerPoint {
-                        screen_pos: b,
-                        texture_coords: uv_b,
-                        normal: n_b,
-                        depth: b_z,
-                    },
-                    RasterizerPoint {
-                        screen_pos: c,
-                        texture_coords: uv_c,
-                        normal: n_c,
-                        depth: c_z,
-                    },
-                ) = (chunk[0], chunk[1], chunk[2]);
+            // Vertex shader
+            let model_shader = ModelShader::new(transformation, world_rotation_matrix);
+            let (vertices, normals) = model_shader.transform(&model.vertices, &model.normals);
+
+            // Assemble and cull triangles
+            let triangles = model
+                .vertex_indices
+                .chunks_exact(3)
+                .zip(model.texture_coord_indices.chunks_exact(3))
+                .zip(model.normal_indices.chunks_exact(3))
+                .filter_map(|((vs, uvs), ns)| {
+                    if (vertices[vs[0]].1 & vertices[vs[1]].1 & vertices[vs[2]].1) == 0 {
+                        Some(Triangle::new(
+                            [vertices[vs[0]].0, vertices[vs[1]].0, vertices[vs[2]].0],
+                            [
+                                model.texture_coords[uvs[0]],
+                                model.texture_coords[uvs[1]],
+                                model.texture_coords[uvs[2]],
+                            ],
+                            [normals[ns[0]], normals[ns[1]], normals[ns[2]]],
+                        ))
+                    } else {
+                        None
+                    }
+                })
+                .flat_map(|triangle| subdivide_partial_oob_triangles(triangle));
+
+            for triangle in triangles {
+                let [a, b, c] = [
+                    homogeneous_to_screen(triangle.vertices[0], self.size),
+                    homogeneous_to_screen(triangle.vertices[1], self.size),
+                    homogeneous_to_screen(triangle.vertices[2], self.size),
+                ];
 
                 // Back-face culling
                 if signed_triangle_area(a, b, c) < 0.0 {
                     continue;
                 }
 
-                let inverse_depths = 1.0 / Float3::new(a_z, b_z, c_z);
+                let inverse_depths = 1.0
+                    / Float3::new(
+                        triangle.vertices[0].w,
+                        triangle.vertices[1].w,
+                        triangle.vertices[2].w,
+                    );
 
                 // Determine chunk bounding box
                 let (min_x, min_y, max_x, max_y) = (
@@ -115,13 +127,13 @@ impl RenderTarget {
                                 continue;
                             }
 
-                            let uv = (uv_a * inverse_depths.x * weights.x
-                                + uv_b * inverse_depths.y * weights.y
-                                + uv_c * inverse_depths.z * weights.z)
+                            let uv = (triangle.uvs[0] * inverse_depths.x * weights.x
+                                + triangle.uvs[1] * inverse_depths.y * weights.y
+                                + triangle.uvs[2] * inverse_depths.z * weights.z)
                                 * depth;
-                            let normal = (n_a * inverse_depths.x * weights.x
-                                + n_b * inverse_depths.y * weights.y
-                                + n_c * inverse_depths.z * weights.z)
+                            let normal = (triangle.normals[0] * inverse_depths.x * weights.x
+                                + triangle.normals[1] * inverse_depths.y * weights.y
+                                + triangle.normals[2] * inverse_depths.z * weights.z)
                                 * depth;
 
                             self.color_buffer[y * self.width + x] = model.shader.color(uv, normal);
@@ -158,239 +170,111 @@ impl RenderTarget {
     }
 }
 
-fn ndc_to_screen(vertex: Float3, size: Float2) -> Float2 {
+fn homogeneous_to_screen(vertex: Float4, size: Float2) -> Float2 {
     Float2::new(
-        (vertex.x + 1.0) * 0.5 * size.x,
-        (1.0 - (vertex.y + 1.0) * 0.5) * size.y,
+        (vertex.x / vertex.w + 1.0) * 0.5 * size.x,
+        (1.0 - (vertex.y / vertex.w + 1.0) * 0.5) * size.y,
     )
 }
 
-fn subdivide_partial_oob_triangles(
-    model: &Model,
-    camera: &Camera,
-    size: Float2,
-) -> Vec<RasterizerPoint> {
-    let world_rotation_matrix = model.transform.get_inverse_rotation();
-    let transformation = &camera.projection
-        * camera.transform.inverse_world_matrix()
-        * model.transform.world_matrix();
+fn subdivide_partial_oob_triangles(triangle: Triangle) -> Vec<Triangle> {
+    let vertices = triangle.vertices;
 
-    let mut rasterizer_points: Vec<RasterizerPoint> = Vec::new();
-    for ((vertices, texture_coords), normals) in model
-        .triangle_points
-        .chunks_exact(3)
-        .zip(model.texture_coords.chunks_exact(3))
-        .zip(model.normals.chunks_exact(3))
-    {
-        let vertices = [
-            &transformation * Float4::from_point(vertices[0]),
-            &transformation * Float4::from_point(vertices[1]),
-            &transformation * Float4::from_point(vertices[2]),
-        ];
+    // Near plane clipping
+    let clip_0 = vertices[0].w >= 0.0 || vertices[0].z + vertices[0].w >= 0.0;
+    let clip_1 = vertices[1].w >= 0.0 || vertices[1].z + vertices[1].w >= 0.0;
+    let clip_2 = vertices[2].w >= 0.0 || vertices[2].z + vertices[2].w >= 0.0;
+    let clip_count = clip_0 as usize + clip_1 as usize + clip_2 as usize;
 
-        // Frustrum Culling
-        let cull_0 = (((vertices[0].w >= 0.0) as u8) << 6)
-            + (((vertices[0].x + vertices[0].w >= 0.0) as u8) << 5)
-            + (((vertices[0].x - vertices[0].w <= 0.0) as u8) << 4)
-            + (((vertices[0].y + vertices[0].w >= 0.0) as u8) << 3)
-            + (((vertices[0].y - vertices[0].w <= 0.0) as u8) << 2)
-            + (((vertices[0].z + vertices[0].w >= 0.0) as u8) << 1)
-            + ((vertices[0].z - vertices[0].w <= 0.0) as u8);
-        let cull_1 = (((vertices[1].w >= 0.0) as u8) << 6)
-            + (((vertices[1].x + vertices[1].w >= 0.0) as u8) << 5)
-            + (((vertices[1].x - vertices[1].w <= 0.0) as u8) << 4)
-            + (((vertices[1].y + vertices[1].w >= 0.0) as u8) << 3)
-            + (((vertices[1].y - vertices[1].w <= 0.0) as u8) << 2)
-            + (((vertices[1].z + vertices[1].w >= 0.0) as u8) << 1)
-            + ((vertices[1].z - vertices[1].w <= 0.0) as u8);
-        let cull_2 = (((vertices[2].w >= 0.0) as u8) << 6)
-            + (((vertices[2].x + vertices[2].w >= 0.0) as u8) << 5)
-            + (((vertices[2].x - vertices[2].w <= 0.0) as u8) << 4)
-            + (((vertices[2].y + vertices[2].w >= 0.0) as u8) << 3)
-            + (((vertices[2].y - vertices[2].w <= 0.0) as u8) << 2)
-            + (((vertices[2].z + vertices[2].w >= 0.0) as u8) << 1)
-            + ((vertices[2].z - vertices[2].w <= 0.0) as u8);
-        if (cull_0 & cull_1 & cull_2) > 0 {
-            continue;
+    match clip_count {
+        0 => Vec::from([triangle]),
+        1 => {
+            // Determine which vertex will be clipped and which two will remain.
+            let idx_clip = if clip_0 {
+                0
+            } else {
+                if clip_1 { 1 } else { 2 }
+            };
+            let idx_next = (idx_clip + 1) % 3;
+            let idx_prev = (idx_clip - 1 + 3) % 3;
+            let vertex_clip = vertices[idx_clip];
+            let vertex_a = vertices[idx_next];
+            let vertex_b = vertices[idx_prev];
+
+            // Fraction along triangle edge at which the depth is equal to the clip distance
+            let frac_a = (vertex_clip.w + vertex_clip.z)
+                / ((vertex_clip.w + vertex_clip.z) - (vertex_a.w + vertex_a.z));
+            let frac_b = (vertex_clip.w + vertex_clip.z)
+                / ((vertex_clip.w + vertex_clip.z) - (vertex_b.w + vertex_b.z));
+
+            // New triangle points in view space
+            let clip_vertex_along_edge_a = vertex_clip.lerp(vertex_a, frac_a);
+            let clip_vertex_along_edge_b = vertex_clip.lerp(vertex_b, frac_b);
+
+            let uv_a = triangle.uvs[idx_clip].lerp(triangle.uvs[idx_next], frac_a);
+            let uv_b = triangle.uvs[idx_clip].lerp(triangle.uvs[idx_prev], frac_b);
+
+            let normal_a = triangle.normals[idx_clip].lerp(triangle.normals[idx_next], frac_a);
+            let normal_b = triangle.normals[idx_clip].lerp(triangle.normals[idx_prev], frac_b);
+
+            // First new triangle
+            Vec::from([
+                Triangle::new(
+                    [clip_vertex_along_edge_b, clip_vertex_along_edge_a, vertex_b],
+                    [uv_b, uv_a, triangle.uvs[idx_prev]],
+                    [normal_b, normal_a, triangle.normals[idx_prev]],
+                ),
+                Triangle::new(
+                    [clip_vertex_along_edge_a, vertex_a, vertex_b],
+                    [uv_a, triangle.uvs[idx_next], triangle.uvs[idx_prev]],
+                    [
+                        normal_a,
+                        triangle.normals[idx_next],
+                        triangle.normals[idx_prev],
+                    ],
+                ),
+            ])
         }
+        2 => {
+            // Figure out which point remains and the two that will be clipped
+            let idx_non_clip = if !clip_0 {
+                0
+            } else {
+                if !clip_1 { 1 } else { 2 }
+            };
+            let idx_next = (idx_non_clip + 1) % 3;
+            let idx_prev = (idx_non_clip - 1 + 3) % 3;
+            let vertex_non_clip = vertices[idx_non_clip];
+            let vertex_a = vertices[idx_next];
+            let vertex_b = vertices[idx_prev];
 
-        // Near plane clipping
-        let clip_0 = vertices[0].w >= 0.0 || vertices[0].z + vertices[0].w >= 0.0;
-        let clip_1 = vertices[1].w >= 0.0 || vertices[1].z + vertices[1].w >= 0.0;
-        let clip_2 = vertices[2].w >= 0.0 || vertices[2].z + vertices[2].w >= 0.0;
-        let clip_count = clip_0 as usize + clip_1 as usize + clip_2 as usize;
+            // Fraction along triangle edge at which the depth is equal to the clip distance
+            let frac_a = (vertex_non_clip.w + vertex_non_clip.z)
+                / ((vertex_non_clip.w + vertex_non_clip.z) - (vertex_a.w + vertex_a.z));
+            let frac_b = (vertex_non_clip.w + vertex_non_clip.z)
+                / ((vertex_non_clip.w + vertex_non_clip.z) - (vertex_b.w + vertex_b.z));
 
-        let normals = [
-            (&world_rotation_matrix * Float4::from_vector(normals[0])).xyz(),
-            (&world_rotation_matrix * Float4::from_vector(normals[1])).xyz(),
-            (&world_rotation_matrix * Float4::from_vector(normals[2])).xyz(),
-        ];
+            // New triangle points in view space
+            let clip_vertex_along_edge_a = vertex_non_clip.lerp(vertex_a, frac_a);
+            let clip_vertex_along_edge_b = vertex_non_clip.lerp(vertex_b, frac_b);
 
-        match clip_count {
-            0 => {
-                rasterizer_points.push(RasterizerPoint::new(
-                    ndc_to_screen(vertices[0].xyz() / vertices[0].w, size),
-                    texture_coords[0],
-                    normals[0],
-                    vertices[0].w,
-                ));
-                rasterizer_points.push(RasterizerPoint::new(
-                    ndc_to_screen(vertices[1].xyz() / vertices[1].w, size),
-                    texture_coords[1],
-                    normals[1],
-                    vertices[1].w,
-                ));
-                rasterizer_points.push(RasterizerPoint::new(
-                    ndc_to_screen(vertices[2].xyz() / vertices[2].w, size),
-                    texture_coords[2],
-                    normals[2],
-                    vertices[2].w,
-                ));
-            }
-            1 => {
-                // Determine which vertex will be clipped and which two will remain.
-                let idx_clip = if clip_0 {
-                    0
-                } else {
-                    if clip_1 { 1 } else { 2 }
-                };
-                let idx_next = (idx_clip + 1) % 3;
-                let idx_prev = (idx_clip - 1 + 3) % 3;
-                let vertex_clip = vertices[idx_clip];
-                let vertex_a = vertices[idx_next];
-                let vertex_b = vertices[idx_prev];
+            let uv_a = triangle.uvs[idx_non_clip].lerp(triangle.uvs[idx_next], frac_a);
+            let uv_b = triangle.uvs[idx_non_clip].lerp(triangle.uvs[idx_prev], frac_b);
 
-                // Fraction along triangle edge at which the depth is equal to the clip distance
-                let frac_a = (vertex_clip.w + vertex_clip.z)
-                    / ((vertex_clip.w + vertex_clip.z) - (vertex_a.w + vertex_a.z));
-                let frac_b = (vertex_clip.w + vertex_clip.z)
-                    / ((vertex_clip.w + vertex_clip.z) - (vertex_b.w + vertex_b.z));
+            let normal_a = triangle.normals[idx_non_clip].lerp(triangle.normals[idx_next], frac_a);
+            let normal_b = triangle.normals[idx_non_clip].lerp(triangle.normals[idx_prev], frac_b);
 
-                // New triangle points in view space
-                let clip_vertex_along_edge_a = vertex_clip.lerp(vertex_a, frac_a);
-                let clip_vertex_along_edge_b = vertex_clip.lerp(vertex_b, frac_b);
-
-                let uv_a = texture_coords[idx_clip].lerp(texture_coords[idx_next], frac_a);
-                let uv_b = texture_coords[idx_clip].lerp(texture_coords[idx_prev], frac_b);
-
-                let normal_a = normals[idx_clip].lerp(normals[idx_next], frac_a);
-                let normal_b = normals[idx_clip].lerp(normals[idx_prev], frac_b);
-
-                // First new triangle
-                let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                    (
-                        ndc_to_screen(
-                            clip_vertex_along_edge_b.xyz() / clip_vertex_along_edge_b.w,
-                            size,
-                        ),
-                        clip_vertex_along_edge_b.w,
-                    ),
-                    (
-                        ndc_to_screen(
-                            clip_vertex_along_edge_a.xyz() / clip_vertex_along_edge_a.w,
-                            size,
-                        ),
-                        clip_vertex_along_edge_a.w,
-                    ),
-                    (ndc_to_screen(vertex_b.xyz() / vertex_b.w, size), vertex_b.w),
-                );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_b, normal_b, a_z));
-                rasterizer_points.push(RasterizerPoint::new(b_screen, uv_a, normal_a, b_z));
-                rasterizer_points.push(RasterizerPoint::new(
-                    c_screen,
-                    texture_coords[idx_prev],
-                    normals[idx_prev],
-                    c_z,
-                ));
-
-                // Second new triangle
-                let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                    (
-                        ndc_to_screen(
-                            clip_vertex_along_edge_a.xyz() / clip_vertex_along_edge_a.w,
-                            size,
-                        ),
-                        clip_vertex_along_edge_a.w,
-                    ),
-                    (ndc_to_screen(vertex_a.xyz() / vertex_a.w, size), vertex_a.w),
-                    (ndc_to_screen(vertex_b.xyz() / vertex_b.w, size), vertex_b.w),
-                );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_a, normal_a, a_z));
-                rasterizer_points.push(RasterizerPoint::new(
-                    b_screen,
-                    texture_coords[idx_next],
-                    normals[idx_next],
-                    b_z,
-                ));
-                rasterizer_points.push(RasterizerPoint::new(
-                    c_screen,
-                    texture_coords[idx_prev],
-                    normals[idx_prev],
-                    c_z,
-                ));
-            }
-            2 => {
-                // Figure out which point remains and the two that will be clipped
-                let idx_non_clip = if !clip_0 {
-                    0
-                } else {
-                    if !clip_1 { 1 } else { 2 }
-                };
-                let idx_next = (idx_non_clip + 1) % 3;
-                let idx_prev = (idx_non_clip - 1 + 3) % 3;
-                let vertex_non_clip = vertices[idx_non_clip];
-                let vertex_a = vertices[idx_next];
-                let vertex_b = vertices[idx_prev];
-
-                // Fraction along triangle edge at which the depth is equal to the clip distance
-                let frac_a = (vertex_non_clip.w + vertex_non_clip.z)
-                    / ((vertex_non_clip.w + vertex_non_clip.z) - (vertex_a.w + vertex_a.z));
-                let frac_b = (vertex_non_clip.w + vertex_non_clip.z)
-                    / ((vertex_non_clip.w + vertex_non_clip.z) - (vertex_b.w + vertex_b.z));
-
-                // New triangle points in view space
-                let clip_vertex_along_edge_a = vertex_non_clip.lerp(vertex_a, frac_a);
-                let clip_vertex_along_edge_b = vertex_non_clip.lerp(vertex_b, frac_b);
-
-                let uv_a = texture_coords[idx_non_clip].lerp(texture_coords[idx_next], frac_a);
-                let uv_b = texture_coords[idx_non_clip].lerp(texture_coords[idx_prev], frac_b);
-
-                let normal_a = normals[idx_non_clip].lerp(normals[idx_next], frac_a);
-                let normal_b = normals[idx_non_clip].lerp(normals[idx_prev], frac_b);
-
-                // New triangle
-                let ((a_screen, a_z), (b_screen, b_z), (c_screen, c_z)) = (
-                    (
-                        ndc_to_screen(
-                            clip_vertex_along_edge_b.xyz() / clip_vertex_along_edge_b.w,
-                            size,
-                        ),
-                        clip_vertex_along_edge_b.w,
-                    ),
-                    (
-                        ndc_to_screen(vertex_non_clip.xyz() / vertex_non_clip.w, size),
-                        vertex_non_clip.w,
-                    ),
-                    (
-                        ndc_to_screen(
-                            clip_vertex_along_edge_a.xyz() / clip_vertex_along_edge_a.w,
-                            size,
-                        ),
-                        clip_vertex_along_edge_a.w,
-                    ),
-                );
-                rasterizer_points.push(RasterizerPoint::new(a_screen, uv_b, normal_b, a_z));
-                rasterizer_points.push(RasterizerPoint::new(
-                    b_screen,
-                    texture_coords[idx_non_clip],
-                    normals[idx_non_clip],
-                    b_z,
-                ));
-                rasterizer_points.push(RasterizerPoint::new(c_screen, uv_a, normal_a, c_z));
-            }
-            _ => continue,
+            // New triangle
+            Vec::from([Triangle::new(
+                [
+                    clip_vertex_along_edge_b,
+                    vertex_non_clip,
+                    clip_vertex_along_edge_a,
+                ],
+                [uv_b, triangle.uvs[idx_non_clip], uv_a],
+                [normal_b, triangle.normals[idx_non_clip], normal_a],
+            )])
         }
+        _ => Vec::new(),
     }
-
-    rasterizer_points
 }

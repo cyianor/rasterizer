@@ -36,8 +36,14 @@ impl Scene {
             last_frame_counter: 0,
         };
 
-        let (vertices, texture_coords, normals) =
-            read_obj_file("models/cube.obj", true, true).unwrap();
+        let (
+            vertices,
+            vertex_indices,
+            texture_coords,
+            texture_coord_indices,
+            normals,
+            normal_indices,
+        ) = read_obj_file("models/cube.obj", true, true).unwrap();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), Float3::ones());
 
@@ -49,14 +55,23 @@ impl Scene {
 
         scene.models.push(Model::new(
             vertices,
+            vertex_indices,
             texture_coords,
+            texture_coord_indices,
             normals,
+            normal_indices,
             transform,
             Box::new(shader),
         ));
 
-        let (vertices, texture_coords, normals) =
-            read_obj_file("models/dragon.obj", true, true).unwrap();
+        let (
+            vertices,
+            vertex_indices,
+            texture_coords,
+            texture_coord_indices,
+            normals,
+            normal_indices,
+        ) = read_obj_file("models/dragon.obj", true, true).unwrap();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 4.0, 0.0), Float3::ones());
 
@@ -68,14 +83,23 @@ impl Scene {
 
         scene.models.push(Model::new(
             vertices,
+            vertex_indices,
             texture_coords,
+            texture_coord_indices,
             normals,
+            normal_indices,
             transform,
             Box::new(shader),
         ));
 
-        let (vertices, texture_coords, normals) =
-            read_obj_file("models/floor.obj", true, true).unwrap();
+        let (
+            vertices,
+            vertex_indices,
+            texture_coords,
+            texture_coord_indices,
+            normals,
+            normal_indices,
+        ) = read_obj_file("models/floor.obj", true, true).unwrap();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), Float3::ones());
 
@@ -86,8 +110,11 @@ impl Scene {
 
         scene.models.push(Model::new(
             vertices,
+            vertex_indices,
             texture_coords,
+            texture_coord_indices,
             normals,
+            normal_indices,
             transform,
             Box::new(shader),
         ));
