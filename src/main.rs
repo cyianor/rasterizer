@@ -20,6 +20,12 @@ fn run(target: &mut RenderTarget, scene: &mut Scene) {
     let mut texture_bytes: Vec<u8> = Vec::new();
     texture_bytes.resize(target.width * target.height * 4, 0); // RGBA
 
+    // let depth_img = Image::gen_image_color(target.width as i32, target.height as i32, Color::WHITE)
+    //     .from_channel(0);
+    // let mut depth_texture = rl.load_texture_from_image(&thread, &depth_img).unwrap();
+    // let mut depth_texture_bytes: Vec<u8> = Vec::new();
+    // depth_texture_bytes.resize(target.width * target.height, 0); // Grayscale
+
     // Render loop
     while !rl.window_should_close() {
         if initial_frames > 0 {
