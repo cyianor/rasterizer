@@ -1,5 +1,5 @@
 use crate::light::SpotLight;
-use crate::math::{Float2, Float3, Float4, Float4x4};
+use crate::math::{Float3, Float4, Float4x4};
 use crate::texture::Texture;
 use crate::render::VertexAttributes;
 

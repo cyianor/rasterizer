@@ -14,11 +14,7 @@ pub struct VertexAttributes {
 
 impl VertexAttributes {
     pub fn new(vertex: Float3, uv: Float2, normal: Float3) -> Self {
-        Self {
-            vertex,
-            uv,
-            normal,
-        }
+        Self { vertex, uv, normal }
     }
 
     pub fn lerp(&self, other: &VertexAttributes, proportion: f32) -> Self {
@@ -116,10 +112,7 @@ impl RenderTarget {
                 &scene.camera.projection * scene.camera.transform.inverse_world_matrix();
 
             // Vertex shader
-            let model_shader = ModelShader::new(
-                model_world_matrix,
-                camera_view_proj_matrix,
-            );
+            let model_shader = ModelShader::new(model_world_matrix, camera_view_proj_matrix);
             let (vertices, vertices_attr, normals) =
                 model_shader.transform(&model.vertices, &model.normals);
 
@@ -204,8 +197,7 @@ impl RenderTarget {
                             let attrs =
                                 triangle.perspective_interpolation(inverse_depths, depth, weights);
 
-                            self.color_buffer[y * self.width + x] =
-                                model.shader.color(attrs.vertex, attrs.uv, attrs.normal);
+                            self.color_buffer[y * self.width + x] = model.shader.color(attrs);
                             self.depth_buffer[y * self.width + x] = depth;
                         }
                     }
