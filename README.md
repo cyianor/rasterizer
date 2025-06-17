@@ -10,3 +10,4 @@ by Sebastian Lague.
   (see [https://www.realtimerendering.com/](https://www.realtimerendering.com/) for the current edition)
 - [Great explanation of orthographic and perspective projection](https://www.youtube.com/watch?v=U0_ONQQ5ZNM)
 - [Overview of rasterization algorithm](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html)
+- Clipping in homogeneous space, [Blinn and Newell (1978) - Clipping using homogeneous coordinates](https://dl.acm.org/doi/10.1145/965139.807398)

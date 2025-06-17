@@ -6,3 +6,4 @@ pub mod scene;
 pub mod camera;
 pub mod texture;
 pub mod shader;
+pub mod light;

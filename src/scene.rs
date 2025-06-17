@@ -1,8 +1,9 @@
 use crate::camera::Camera;
+use crate::light::SpotLight;
 use crate::math::Float3;
 use crate::model::{Model, read_obj_file};
 use crate::render::RenderTarget;
-use crate::shader::{DiffuseShader, TextureShader};
+use crate::shader::{DiffuseShader, DiffuseShaderWithSpotlight, TextureShader};
 use crate::texture::Texture;
 use crate::transform::Transform;
 use raylib::RaylibHandle;
@@ -36,6 +37,15 @@ impl Scene {
             last_frame_counter: 0,
         };
 
+        let ambient_factor = 0.5f32;
+        let direction_to_light = Float3::new(1.0, 1.0, 0.0).normalized();
+        let spotlight = SpotLight::new(
+            Float3::new(1.0, 1.0, 1.0),
+            Float3::new(-5.0, 10.0, 0.0),
+            Float3::new(-2.0, 0.0, 1.0),
+            30f32.to_radians(),
+        );
+
         let (
             vertices,
             vertex_indices,
@@ -47,10 +57,11 @@ impl Scene {
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), Float3::ones());
 
-        let shader = DiffuseShader::new(
+        let shader = DiffuseShaderWithSpotlight::new(
             Float3::new(1.0, 0.0, 0.0),
-            Float3::new(1.0, 1.0, 0.0).normalized(),
-            0.2,
+            direction_to_light,
+            ambient_factor,
+            spotlight,
         );
 
         scene.models.push(Model::new(
@@ -75,10 +86,11 @@ impl Scene {
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 4.0, 0.0), Float3::ones());
 
-        let shader = DiffuseShader::new(
+        let shader = DiffuseShaderWithSpotlight::new(
             Float3::new(0.0, 1.0, 0.0),
-            Float3::new(1.0, 1.0, 0.0).normalized(),
-            0.2,
+            direction_to_light,
+            ambient_factor,
+            spotlight,
         );
 
         scene.models.push(Model::new(
@@ -103,10 +115,14 @@ impl Scene {
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), Float3::ones());
 
-        let texture = Texture::from_png("models/checker-map_tho.png");
-        let shader = TextureShader::new(texture);
-
-        // let shader = DiffuseShader::new(Float3::new(0.0, 0.0, 1.0));
+        // let texture = Texture::from_png("models/checker-map_tho.png");
+        // let shader = TextureShader::new(texture);
+        let shader = DiffuseShaderWithSpotlight::new(
+            Float3::new(0.0, 0.0, 1.0),
+            direction_to_light,
+            ambient_factor,
+            spotlight,
+        );
 
         scene.models.push(Model::new(
             vertices,

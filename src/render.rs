@@ -6,10 +6,10 @@ use crate::scene::Scene;
 use crate::shader::ModelShader;
 
 #[derive(Debug, Clone, Copy)]
-struct VertexAttributes {
-    vertex: Float3,
-    uv: Float2,
-    normal: Float3,
+pub struct VertexAttributes {
+    pub vertex: Float3,
+    pub uv: Float2,
+    pub normal: Float3,
 }
 
 impl VertexAttributes {

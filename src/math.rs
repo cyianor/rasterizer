@@ -1666,7 +1666,7 @@ impl Float4 {
         Float3::new(self.x, self.y, self.z)
     }
 
-    pub fn dot(&self, other: Float4) -> f32 {
+    pub fn dot(&self, other: &Float4) -> f32 {
         self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
     }
 
@@ -1683,7 +1683,7 @@ impl Float4 {
         }
     }
 
-    pub fn lerp(&self, other: Float4, t: f32) -> Self {
+    pub fn lerp(&self, other: &Float4, t: f32) -> Self {
         self + t * (other - self)
     }
 }
@@ -2974,10 +2974,10 @@ impl Mul<Float4> for Float4x4 {
 
     fn mul(self, rhs: Float4) -> Self::Output {
         Float4 {
-            x: self.r1.dot(rhs),
-            y: self.r2.dot(rhs),
-            z: self.r3.dot(rhs),
-            w: self.r4.dot(rhs),
+            x: self.r1.dot(&rhs),
+            y: self.r2.dot(&rhs),
+            z: self.r3.dot(&rhs),
+            w: self.r4.dot(&rhs),
         }
     }
 }
@@ -2986,6 +2986,19 @@ impl Mul<Float4> for &Float4x4 {
     type Output = Float4;
 
     fn mul(self, rhs: Float4) -> Self::Output {
+        Float4 {
+            x: self.r1.dot(&rhs),
+            y: self.r2.dot(&rhs),
+            z: self.r3.dot(&rhs),
+            w: self.r4.dot(&rhs),
+        }
+    }
+}
+
+impl Mul<&Float4> for &Float4x4 {
+    type Output = Float4;
+
+    fn mul(self, rhs: &Float4) -> Self::Output {
         Float4 {
             x: self.r1.dot(rhs),
             y: self.r2.dot(rhs),

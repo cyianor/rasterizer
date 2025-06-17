@@ -1,5 +1,7 @@
+use crate::light::SpotLight;
 use crate::math::{Float2, Float3, Float4, Float4x4};
 use crate::texture::Texture;
+use crate::render::VertexAttributes;
 
 pub struct ShadowMapShader {
     pub transformation: Float4x4,
@@ -30,33 +32,54 @@ impl ShadowMapShader {
 }
 
 pub struct ModelShader {
-    pub transformation: Float4x4,
-    pub rotation: Float4x4,
+    pub model_world_matrix: Float4x4,
+    pub camera_view_proj_matrix: Float4x4,
 }
 
 impl ModelShader {
-    pub fn new(transformation: Float4x4, rotation: Float4x4) -> Self {
-        ModelShader { transformation, rotation }
+    pub fn new(model_world_matrix: Float4x4, camera_view_proj_matrix: Float4x4) -> Self {
+        Self {
+            model_world_matrix,
+            camera_view_proj_matrix,
+        }
     }
 
-    pub fn transform(&self, vertices: &Vec<Float3>, normals: &Vec<Float3>) -> (Vec<(Float4, u8)>, Vec<Float3>) {
-        let vertices = vertices
+    pub fn transform(
+        &self,
+        vertices: &Vec<Float3>,
+        normals: &Vec<Float3>,
+    ) -> (Vec<(Float4, u8)>, Vec<Float3>, Vec<Float3>) {
+        let world_vertices = vertices
             .iter()
-            .map(|v| &self.transformation * Float4::from_point(*v))
+            .map(|v| &self.model_world_matrix * Float4::from_point(*v))
+            .collect::<Vec<_>>();
+
+        let vertices = world_vertices
+            .iter()
+            .map(|v| &self.camera_view_proj_matrix * v)
             .map(|v| (v, culling_bitmask(&v)))
+            .collect::<Vec<_>>();
+
+        let vertices_attr = world_vertices
+            .iter()
+            .map(|v| v.xyz() / v.w)
             .collect::<Vec<_>>();
 
         let normals = normals
             .iter()
-            .map(|n| (&self.rotation * Float4::from_vector(*n)).xyz())
+            .map(|n| {
+                (&self.model_world_matrix * Float4::from_vector(*n))
+                    .xyz()
+                    .normalized()
+            })
             .collect::<Vec<_>>();
 
-        (vertices, normals)
+        (vertices, vertices_attr, normals)
     }
 }
 
 pub trait Shader {
-    fn color(&self, texture_coord: Float2, normal: Float3) -> Float3;
+    fn color(&self, attrs: VertexAttributes) -> Float3;
 }
 
 pub struct TextureShader {
@@ -70,8 +93,8 @@ impl TextureShader {
 }
 
 impl Shader for TextureShader {
-    fn color(&self, texture_coord: Float2, _normal: Float3) -> Float3 {
-        self.texture.sample(texture_coord)
+    fn color(&self, attrs: VertexAttributes) -> Float3 {
+        self.texture.sample(attrs.uv)
     }
 }
 
@@ -92,10 +115,52 @@ impl DiffuseShader {
 }
 
 impl Shader for DiffuseShader {
-    fn color(&self, _texture_coord: Float2, normal: Float3) -> Float3 {
-        let normal = normal.normalized();
+    fn color(&self, attrs: VertexAttributes) -> Float3 {
+        let normal = attrs.normal.normalized();
         let light_intensity = normal.dot(self.direction_to_light).max(0.0);
         // (normal + 1.0) * 0.5
         self.color * (self.ambient_factor + light_intensity)
+    }
+}
+
+pub struct DiffuseShaderWithSpotlight {
+    pub color: Float3,
+    pub direction_to_light: Float3,
+    pub ambient_factor: f32,
+    pub spotlight: SpotLight,
+}
+
+impl DiffuseShaderWithSpotlight {
+    pub fn new(
+        color: Float3,
+        direction_to_light: Float3,
+        ambient_factor: f32,
+        spotlight: SpotLight,
+    ) -> Self {
+        DiffuseShaderWithSpotlight {
+            color,
+            direction_to_light,
+            ambient_factor,
+            spotlight,
+        }
+    }
+}
+
+impl Shader for DiffuseShaderWithSpotlight {
+    fn color(&self, attrs: VertexAttributes) -> Float3 {
+        let normal = attrs.normal.normalized();
+        let light_intensity = normal.dot(self.direction_to_light).max(0.0);
+        let to_light = self.spotlight.position - attrs.vertex;
+        let dir_to_light = to_light.normalized();
+        let dir_to_target = (self.spotlight.position - self.spotlight.target).normalized();
+        let cos_angle_cone = dir_to_light.dot(dir_to_target);
+        let spot_intensity = if cos_angle_cone > self.spotlight.angle.cos() {
+            normal.dot(dir_to_light).max(0.0) * cos_angle_cone.max(0.0)
+        } else {
+            0.0
+        };
+
+        self.color * light_intensity * self.ambient_factor
+            + (1.0 - self.ambient_factor) * self.spotlight.color * spot_intensity
     }
 }
