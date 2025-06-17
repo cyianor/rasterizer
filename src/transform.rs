@@ -1,5 +1,6 @@
 use crate::math::{Float3, Float4, Float4x4};
 
+#[derive(Debug, Clone, Copy)]
 pub struct Transform {
     pub yaw: f32,   // rotation around upwards vector
     pub pitch: f32, // rotation around rightwards vector

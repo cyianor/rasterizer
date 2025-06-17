@@ -804,6 +804,14 @@ impl Float3 {
         }
     }
 
+    pub fn reflect(&self, other: Float3) -> Self {
+        self - 2.0 * self.dot(other) * other
+    }
+
+    pub fn powf(&self, n: f32) -> Self {
+        Self::new(self.x.powf(n), self.y.powf(n), self.z.powf(n))
+    }
+
     pub fn norm(&self) -> f32 {
         (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
     }
@@ -2430,7 +2438,7 @@ impl Neg for &Float4 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Float4x4 {
     pub r1: Float4,
     pub r2: Float4,

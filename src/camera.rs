@@ -1,6 +1,7 @@
 use crate::math::{Float3, Float4x4};
 use crate::transform::Transform;
 
+#[derive(Debug, Clone, Copy)]
 pub struct Camera {
     pub fov: f32,
     pub aspect_ratio: f32,
@@ -20,15 +21,6 @@ impl Camera {
         near: f32,
         far: f32,
     ) -> Self {
-        // let cam_fwd = (position - target).normalized();
-        // let cam_right = up.cross(cam_fwd).normalized();
-        // let cam_up = cam_fwd.cross(cam_right);
-
-        // // rows of rotation matrix cam_right, cam_up, cam_fwd
-        // let yaw = (-cam_fwd.x).atan2(cam_fwd.z);
-        // let pitch = cam_fwd.y.asin();
-        // let roll = (-cam_right.y).atan2(cam_up.y);
-
         // Perspective projection
         // From view space to normalized device coordinates
         let top = -near * (fov / 2.0).tan();
@@ -43,7 +35,6 @@ impl Camera {
             aspect_ratio,
             near,
             far,
-            // transform: Transform::new(yaw, pitch, roll, position, Float3::ones()),
             transform: Transform::from_vectors(position, target, up, Float3::ones()),
             projection,
         }

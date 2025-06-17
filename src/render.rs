@@ -1,6 +1,7 @@
 use core::f32;
 use std::ops::{Add, Mul};
 
+use crate::camera::Camera;
 use crate::math::{Float2, Float3, Float4, point_in_triangle, signed_triangle_area};
 use crate::scene::Scene;
 use crate::shader::ModelShader;
@@ -65,14 +66,14 @@ impl Triangle {
 
     pub fn perspective_interpolation(
         &self,
-        inverse_depths: Float3,
-        depth: f32,
+        inverse_ws: Float3,
+        w: f32,
         weights: Float3,
     ) -> VertexAttributes {
-        (self.vertex_attributes[0] * (inverse_depths.x * weights.x)
-            + self.vertex_attributes[1] * (inverse_depths.y * weights.y)
-            + self.vertex_attributes[2] * (inverse_depths.z * weights.z))
-            * depth
+        (self.vertex_attributes[0] * (inverse_ws.x * weights.x)
+            + self.vertex_attributes[1] * (inverse_ws.y * weights.y)
+            + self.vertex_attributes[2] * (inverse_ws.z * weights.z))
+            * w
     }
 }
 
@@ -102,7 +103,7 @@ impl RenderTarget {
 
     pub fn clear(&mut self, color: Float3) {
         self.color_buffer.fill(color);
-        self.depth_buffer.fill(f32::NEG_INFINITY);
+        self.depth_buffer.fill(f32::INFINITY);
     }
 
     pub fn render(&mut self, scene: &Scene) {
@@ -116,7 +117,7 @@ impl RenderTarget {
             let (vertices, vertices_attr, normals) =
                 model_shader.transform(&model.vertices, &model.normals);
 
-            // Assemble and cull triangles
+            // Assemble, cull, and subdivide (if necessary) triangles
             let triangles = model
                 .vertex_indices
                 .chunks_exact(3)
@@ -161,12 +162,18 @@ impl RenderTarget {
                     continue;
                 }
 
-                let inverse_depths = 1.0
+                let inverse_view_depths = 1.0
                     / Float3::new(
                         triangle.vertices[0].w,
                         triangle.vertices[1].w,
                         triangle.vertices[2].w,
                     );
+                let depths =
+                    (1.0 + Float3::new(
+                        triangle.vertices[0].z / triangle.vertices[0].w,
+                        triangle.vertices[1].z / triangle.vertices[1].w,
+                        triangle.vertices[2].z / triangle.vertices[2].w,
+                    )) * 0.5;
 
                 // Determine chunk bounding box
                 let (min_x, min_y, max_x, max_y) = (
@@ -188,14 +195,25 @@ impl RenderTarget {
                         if let Some(weights) =
                             point_in_triangle(a, b, c, Float2::new(x as f32, y as f32))
                         {
-                            let depth = 1.0 / inverse_depths.dot(weights);
-                            if depth < self.depth_buffer[y * self.width + x] {
+                            // Depth like in OpenGL
+                            // Perspective projection leads to
+                            // z' = ((far + near) / (far - near) - 2 * far * near / (z * (far - near)) + 1) / 2
+                            // which is equivalent to (1/z - 1/near) / (1/far - 1/near) because
+                            // (I) -2/z / ((far - near) / (far * near)) = -2/z / (1/near - 1/far) = 2/z / (1/far - 1/near)
+                            // (II) (far + near) / (far - near) = (1/near + 1/far) / (1/near - 1/far)
+                            // (III) ((2/z - (1/near + 1/far)) / (1/far - 1/near) + 1)/ 2
+                            //     = (2/z - (1/near + 1/far) + (1/far - 1/near)) / (2 * (1/far - 1/near))
+                            //     = (1/z - 1/near) / (1/far - 1/near) = a * 1/z + b
+                            let depth = depths.dot(weights);
+                            if depth > self.depth_buffer[y * self.width + x] || depth > 1.0 {
                                 continue;
                             }
 
-                            // Interpolate vertex attributes
-                            let attrs =
-                                triangle.perspective_interpolation(inverse_depths, depth, weights);
+                            let attrs = triangle.perspective_interpolation(
+                                inverse_view_depths,
+                                1.0 / inverse_view_depths.dot(weights),
+                                weights,
+                            );
 
                             self.color_buffer[y * self.width + x] = model.shader.color(attrs);
                             self.depth_buffer[y * self.width + x] = depth;
@@ -218,17 +236,33 @@ impl RenderTarget {
         }
     }
 
-    // pub fn depth_buffer_to_byte_array(&self, bytes: &mut Vec<u8>) {
-    //     for y in 0..self.height {
-    //         for x in 0..self.width {
-    //             let c = -1.0 / self.depth_buffer[y * self.width + x];
-    //             bytes[(y * self.width + x) * 4 + 1] = c.clamp(0.0, 255.0) as u8;
-    //             bytes[(y * self.width + x) * 4 + 0] = c.clamp(0.0, 255.0) as u8;
-    //             bytes[(y * self.width + x) * 4 + 2] = c.clamp(0.0, 255.0) as u8;
-    //             bytes[(y * self.width + x) * 4 + 3] = 255;
-    //         }
-    //     }
-    // }
+    pub fn depth_buffer_to_byte_array(&self, bytes: &mut Vec<u8>, camera: &Camera) {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let c = self.depth_buffer[y * self.width + x];
+
+                bytes[y * self.width + x] = if c == f32::INFINITY {
+                    255
+                } else {
+                    // Reverse z coordinate projection
+                    // z' = ((far + near) / (far - near) - 2 * far * near / (z * (far - near)) + 1) / 2
+                    // (2*z' - 1) * (far - near) = (far + near) - 2 * far * near / z
+                    // 2*far*near / z = far + near - (2*z' - 1) * (far - near)
+                    // z = 2 * far * near / (far + near - (2*z' - 1) * (far - near))
+                    //
+                    // z is in [far, near] (note that far and near are negative)
+                    // Divide by far to squish values into [0, 1]
+                    // z values close to near will be almost 0 and values at far will be 1.
+                    ((2.0 * camera.far * camera.near
+                        / (camera.far + camera.near
+                            - (2.0 * c - 1.0) * (camera.far - camera.near))
+                        / camera.far)
+                        * 255.0)
+                        .clamp(0.0, 255.0) as u8
+                };
+            }
+        }
+    }
 }
 
 fn homogeneous_to_screen(vertex: Float4, size: Float2) -> Float2 {

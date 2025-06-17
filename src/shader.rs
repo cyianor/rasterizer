@@ -1,7 +1,7 @@
 use crate::light::SpotLight;
 use crate::math::{Float3, Float4, Float4x4};
-use crate::texture::Texture;
 use crate::render::VertexAttributes;
+use crate::texture::Texture;
 
 pub struct ShadowMapShader {
     pub transformation: Float4x4,
@@ -148,19 +148,22 @@ impl DiffuseShaderWithSpotlight {
 
 impl Shader for DiffuseShaderWithSpotlight {
     fn color(&self, attrs: VertexAttributes) -> Float3 {
+        // Slow attempt at Blinn-Phong shader model
         let normal = attrs.normal.normalized();
         let light_intensity = normal.dot(self.direction_to_light).max(0.0);
         let to_light = self.spotlight.position - attrs.vertex;
         let dir_to_light = to_light.normalized();
         let dir_to_target = (self.spotlight.position - self.spotlight.target).normalized();
-        let cos_angle_cone = dir_to_light.dot(dir_to_target);
-        let spot_intensity = if cos_angle_cone > self.spotlight.angle.cos() {
-            normal.dot(dir_to_light).max(0.0) * cos_angle_cone.max(0.0)
+        let spot_intensity = if dir_to_light.dot(dir_to_target) > self.spotlight.angle.cos() {
+            normal.dot(dir_to_light).max(0.0) / to_light.norm()
         } else {
             0.0
         };
 
-        self.color * light_intensity * self.ambient_factor
-            + (1.0 - self.ambient_factor) * self.spotlight.color * spot_intensity
+        let color = self.color * 0.1
+            + self.color * light_intensity * 0.2
+            + self.color * self.spotlight.color * spot_intensity * 2.5;
+        // Gamma-correction
+        color.powf(1.0 / 2.2)
     }
 }

@@ -27,8 +27,8 @@ impl Scene {
                 Float3::new(0.0, 1.0, 0.0),
                 60f32.to_radians(),
                 aspect_ratio,
-                -0.1,
-                -100.0,
+                -1.0,
+                -50.0,
             ),
             models: Vec::new(),
             total_frame_time: 0.0,
@@ -44,6 +44,8 @@ impl Scene {
             Float3::new(-5.0, 10.0, 0.0),
             Float3::new(-2.0, 0.0, 1.0),
             30f32.to_radians(),
+            128,
+            128,
         );
 
         let (
@@ -61,7 +63,7 @@ impl Scene {
             Float3::new(1.0, 0.0, 0.0),
             direction_to_light,
             ambient_factor,
-            spotlight,
+            spotlight.clone(),
         );
 
         scene.models.push(Model::new(
@@ -90,7 +92,7 @@ impl Scene {
             Float3::new(0.0, 1.0, 0.0),
             direction_to_light,
             ambient_factor,
-            spotlight,
+            spotlight.clone(),
         );
 
         scene.models.push(Model::new(
@@ -121,7 +123,7 @@ impl Scene {
             Float3::new(0.0, 0.0, 1.0),
             direction_to_light,
             ambient_factor,
-            spotlight,
+            spotlight.clone(),
         );
 
         scene.models.push(Model::new(

@@ -9,5 +9,12 @@ by Sebastian Lague.
 - Thomas Akenine-Möller, Eric Haines, and Naty Hoffman (2008) "Real-Time Rendering", 3rd Edition, A K Peters, Ltd
   (see [https://www.realtimerendering.com/](https://www.realtimerendering.com/) for the current edition)
 - [Great explanation of orthographic and perspective projection](https://www.youtube.com/watch?v=U0_ONQQ5ZNM)
+- [All the math behind the OpenGL projection matrix](https://www.songho.ca/opengl/gl_projectionmatrix.html)
 - [Overview of rasterization algorithm](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html)
 - Clipping in homogeneous space, [Blinn and Newell (1978) - Clipping using homogeneous coordinates](https://dl.acm.org/doi/10.1145/965139.807398)
+
+## Goals
+
+- Shadow Maps
+- Additional lights: Point lights
+- Rudimentary but interesting shader model, e.g. Blinn-Phong

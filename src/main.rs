@@ -20,11 +20,13 @@ fn run(target: &mut RenderTarget, scene: &mut Scene) {
     let mut texture_bytes: Vec<u8> = Vec::new();
     texture_bytes.resize(target.width * target.height * 4, 0); // RGBA
 
-    // let depth_img = Image::gen_image_color(target.width as i32, target.height as i32, Color::WHITE)
-    //     .from_channel(0);
-    // let mut depth_texture = rl.load_texture_from_image(&thread, &depth_img).unwrap();
-    // let mut depth_texture_bytes: Vec<u8> = Vec::new();
-    // depth_texture_bytes.resize(target.width * target.height, 0); // Grayscale
+    let depth_img = Image::gen_image_color(target.width as i32, target.height as i32, Color::WHITE)
+        .from_channel(0);
+    let mut depth_texture = rl.load_texture_from_image(&thread, &depth_img).unwrap();
+    let mut depth_texture_bytes: Vec<u8> = Vec::new();
+    depth_texture_bytes.resize(target.width * target.height, 0); // Grayscale
+
+    let mut show_depth = false;
 
     // Render loop
     while !rl.window_should_close() {
@@ -37,17 +39,30 @@ fn run(target: &mut RenderTarget, scene: &mut Scene) {
             scene.update(target, &rl);
         }
 
+        if rl.is_key_pressed(KeyboardKey::KEY_F) {
+            show_depth = !show_depth;
+        }
+
         // Update and rasterize scene
         target.clear(Float3::new(0.0, 0.0, 0.0));
         target.render(&scene);
 
+        if !show_depth {
         // Write rasterizer output to texture and display on window
         target.color_buffer_to_byte_array(&mut texture_bytes);
         // target.depth_buffer_to_byte_array(&mut texture_bytes);
         texture.update_texture(&texture_bytes).unwrap();
+        } else {
+            target.depth_buffer_to_byte_array(&mut depth_texture_bytes, &scene.camera);
+            depth_texture.update_texture(&depth_texture_bytes).unwrap();
+        }
 
         let mut d = rl.begin_drawing(&thread);
-        d.draw_texture(&texture, 0, 0, Color::WHITE);
+        if !show_depth {
+            d.draw_texture(&texture, 0, 0, Color::WHITE);
+        } else {
+            d.draw_texture(&depth_texture, 0, 0, Color::WHITE);
+        }
         d.draw_text(
             &format!("FPS: {}", scene.last_frame_counter),
             0,

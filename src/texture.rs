@@ -2,6 +2,7 @@ use crate::math::{Float2, Float3};
 use png::{ColorType, Decoder};
 use std::fs::File;
 
+#[derive(Debug, Clone)]
 pub struct Texture<T> {
     pub width: usize,
     pub height: usize,
