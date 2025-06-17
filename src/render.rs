@@ -1,22 +1,82 @@
 use core::f32;
+use std::ops::{Add, Mul};
 
 use crate::math::{Float2, Float3, Float4, point_in_triangle, signed_triangle_area};
 use crate::scene::Scene;
 use crate::shader::ModelShader;
 
+#[derive(Debug, Clone, Copy)]
+struct VertexAttributes {
+    vertex: Float3,
+    uv: Float2,
+    normal: Float3,
+}
+
+impl VertexAttributes {
+    pub fn new(vertex: Float3, uv: Float2, normal: Float3) -> Self {
+        Self {
+            vertex,
+            uv,
+            normal,
+        }
+    }
+
+    pub fn lerp(&self, other: &VertexAttributes, proportion: f32) -> Self {
+        let vertex = self.vertex.lerp(other.vertex, proportion);
+        let uv = self.uv.lerp(other.uv, proportion);
+        let normal = self.normal.lerp(other.normal, proportion);
+
+        Self::new(vertex, uv, normal)
+    }
+}
+
+impl Add for VertexAttributes {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            vertex: self.vertex + rhs.vertex,
+            uv: self.uv + rhs.uv,
+            normal: self.normal + rhs.normal,
+        }
+    }
+}
+
+impl Mul<f32> for VertexAttributes {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self {
+            vertex: self.vertex * rhs,
+            uv: self.uv * rhs,
+            normal: self.normal * rhs,
+        }
+    }
+}
+
 struct Triangle {
     vertices: [Float4; 3],
-    uvs: [Float2; 3],
-    normals: [Float3; 3],
+    vertex_attributes: [VertexAttributes; 3],
 }
 
 impl Triangle {
-    pub fn new(vertices: [Float4; 3], uvs: [Float2; 3], normals: [Float3; 3]) -> Self {
+    pub fn new(vertices: [Float4; 3], vertex_attributes: [VertexAttributes; 3]) -> Self {
         Self {
             vertices,
-            uvs,
-            normals,
+            vertex_attributes,
         }
+    }
+
+    pub fn perspective_interpolation(
+        &self,
+        inverse_depths: Float3,
+        depth: f32,
+        weights: Float3,
+    ) -> VertexAttributes {
+        (self.vertex_attributes[0] * (inverse_depths.x * weights.x)
+            + self.vertex_attributes[1] * (inverse_depths.y * weights.y)
+            + self.vertex_attributes[2] * (inverse_depths.z * weights.z))
+            * depth
     }
 }
 
@@ -51,14 +111,17 @@ impl RenderTarget {
 
     pub fn render(&mut self, scene: &Scene) {
         for model in scene.models.iter() {
-            let world_rotation_matrix = model.transform.get_inverse_rotation();
-            let transformation = &scene.camera.projection
-                * scene.camera.transform.inverse_world_matrix()
-                * model.transform.world_matrix();
+            let model_world_matrix = model.transform.world_matrix();
+            let camera_view_proj_matrix =
+                &scene.camera.projection * scene.camera.transform.inverse_world_matrix();
 
             // Vertex shader
-            let model_shader = ModelShader::new(transformation, world_rotation_matrix);
-            let (vertices, normals) = model_shader.transform(&model.vertices, &model.normals);
+            let model_shader = ModelShader::new(
+                model_world_matrix,
+                camera_view_proj_matrix,
+            );
+            let (vertices, vertices_attr, normals) =
+                model_shader.transform(&model.vertices, &model.normals);
 
             // Assemble and cull triangles
             let triangles = model
@@ -66,20 +129,30 @@ impl RenderTarget {
                 .chunks_exact(3)
                 .zip(model.texture_coord_indices.chunks_exact(3))
                 .zip(model.normal_indices.chunks_exact(3))
-                .filter_map(|((vs, uvs), ns)| {
-                    if (vertices[vs[0]].1 & vertices[vs[1]].1 & vertices[vs[2]].1) == 0 {
-                        Some(Triangle::new(
-                            [vertices[vs[0]].0, vertices[vs[1]].0, vertices[vs[2]].0],
-                            [
+                .filter(|((vs, _), _)| {
+                    (vertices[vs[0]].1 & vertices[vs[1]].1 & vertices[vs[2]].1) == 0
+                })
+                .map(|((vs, uvs), ns)| {
+                    Triangle::new(
+                        [vertices[vs[0]].0, vertices[vs[1]].0, vertices[vs[2]].0],
+                        [
+                            VertexAttributes::new(
+                                vertices_attr[vs[0]],
                                 model.texture_coords[uvs[0]],
+                                normals[ns[0]],
+                            ),
+                            VertexAttributes::new(
+                                vertices_attr[vs[1]],
                                 model.texture_coords[uvs[1]],
+                                normals[ns[1]],
+                            ),
+                            VertexAttributes::new(
+                                vertices_attr[vs[2]],
                                 model.texture_coords[uvs[2]],
-                            ],
-                            [normals[ns[0]], normals[ns[1]], normals[ns[2]]],
-                        ))
-                    } else {
-                        None
-                    }
+                                normals[ns[2]],
+                            ),
+                        ],
+                    )
                 })
                 .flat_map(|triangle| subdivide_partial_oob_triangles(triangle));
 
@@ -127,16 +200,12 @@ impl RenderTarget {
                                 continue;
                             }
 
-                            let uv = (triangle.uvs[0] * inverse_depths.x * weights.x
-                                + triangle.uvs[1] * inverse_depths.y * weights.y
-                                + triangle.uvs[2] * inverse_depths.z * weights.z)
-                                * depth;
-                            let normal = (triangle.normals[0] * inverse_depths.x * weights.x
-                                + triangle.normals[1] * inverse_depths.y * weights.y
-                                + triangle.normals[2] * inverse_depths.z * weights.z)
-                                * depth;
+                            // Interpolate vertex attributes
+                            let attrs =
+                                triangle.perspective_interpolation(inverse_depths, depth, weights);
 
-                            self.color_buffer[y * self.width + x] = model.shader.color(uv, normal);
+                            self.color_buffer[y * self.width + x] =
+                                model.shader.color(attrs.vertex, attrs.uv, attrs.normal);
                             self.depth_buffer[y * self.width + x] = depth;
                         }
                     }
@@ -157,17 +226,17 @@ impl RenderTarget {
         }
     }
 
-    pub fn depth_buffer_to_byte_array(&self, bytes: &mut Vec<u8>) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let c = -1.0 / self.depth_buffer[y * self.width + x];
-                bytes[(y * self.width + x) * 4 + 1] = c.clamp(0.0, 255.0) as u8;
-                bytes[(y * self.width + x) * 4 + 0] = c.clamp(0.0, 255.0) as u8;
-                bytes[(y * self.width + x) * 4 + 2] = c.clamp(0.0, 255.0) as u8;
-                bytes[(y * self.width + x) * 4 + 3] = 255;
-            }
-        }
-    }
+    // pub fn depth_buffer_to_byte_array(&self, bytes: &mut Vec<u8>) {
+    //     for y in 0..self.height {
+    //         for x in 0..self.width {
+    //             let c = -1.0 / self.depth_buffer[y * self.width + x];
+    //             bytes[(y * self.width + x) * 4 + 1] = c.clamp(0.0, 255.0) as u8;
+    //             bytes[(y * self.width + x) * 4 + 0] = c.clamp(0.0, 255.0) as u8;
+    //             bytes[(y * self.width + x) * 4 + 2] = c.clamp(0.0, 255.0) as u8;
+    //             bytes[(y * self.width + x) * 4 + 3] = 255;
+    //         }
+    //     }
+    // }
 }
 
 fn homogeneous_to_screen(vertex: Float4, size: Float2) -> Float2 {
@@ -208,29 +277,26 @@ fn subdivide_partial_oob_triangles(triangle: Triangle) -> Vec<Triangle> {
                 / ((vertex_clip.w + vertex_clip.z) - (vertex_b.w + vertex_b.z));
 
             // New triangle points in view space
-            let clip_vertex_along_edge_a = vertex_clip.lerp(vertex_a, frac_a);
-            let clip_vertex_along_edge_b = vertex_clip.lerp(vertex_b, frac_b);
+            let clip_vertex_along_edge_a = vertex_clip.lerp(&vertex_a, frac_a);
+            let clip_vertex_along_edge_b = vertex_clip.lerp(&vertex_b, frac_b);
 
-            let uv_a = triangle.uvs[idx_clip].lerp(triangle.uvs[idx_next], frac_a);
-            let uv_b = triangle.uvs[idx_clip].lerp(triangle.uvs[idx_prev], frac_b);
-
-            let normal_a = triangle.normals[idx_clip].lerp(triangle.normals[idx_next], frac_a);
-            let normal_b = triangle.normals[idx_clip].lerp(triangle.normals[idx_prev], frac_b);
+            let attrs_a = triangle.vertex_attributes[idx_clip]
+                .lerp(&triangle.vertex_attributes[idx_next], frac_a);
+            let attrs_b = triangle.vertex_attributes[idx_clip]
+                .lerp(&triangle.vertex_attributes[idx_prev], frac_b);
 
             // First new triangle
             Vec::from([
                 Triangle::new(
                     [clip_vertex_along_edge_b, clip_vertex_along_edge_a, vertex_b],
-                    [uv_b, uv_a, triangle.uvs[idx_prev]],
-                    [normal_b, normal_a, triangle.normals[idx_prev]],
+                    [attrs_b, attrs_a, triangle.vertex_attributes[idx_prev]],
                 ),
                 Triangle::new(
                     [clip_vertex_along_edge_a, vertex_a, vertex_b],
-                    [uv_a, triangle.uvs[idx_next], triangle.uvs[idx_prev]],
                     [
-                        normal_a,
-                        triangle.normals[idx_next],
-                        triangle.normals[idx_prev],
+                        attrs_a,
+                        triangle.vertex_attributes[idx_next],
+                        triangle.vertex_attributes[idx_prev],
                     ],
                 ),
             ])
@@ -255,14 +321,13 @@ fn subdivide_partial_oob_triangles(triangle: Triangle) -> Vec<Triangle> {
                 / ((vertex_non_clip.w + vertex_non_clip.z) - (vertex_b.w + vertex_b.z));
 
             // New triangle points in view space
-            let clip_vertex_along_edge_a = vertex_non_clip.lerp(vertex_a, frac_a);
-            let clip_vertex_along_edge_b = vertex_non_clip.lerp(vertex_b, frac_b);
+            let clip_vertex_along_edge_a = vertex_non_clip.lerp(&vertex_a, frac_a);
+            let clip_vertex_along_edge_b = vertex_non_clip.lerp(&vertex_b, frac_b);
 
-            let uv_a = triangle.uvs[idx_non_clip].lerp(triangle.uvs[idx_next], frac_a);
-            let uv_b = triangle.uvs[idx_non_clip].lerp(triangle.uvs[idx_prev], frac_b);
-
-            let normal_a = triangle.normals[idx_non_clip].lerp(triangle.normals[idx_next], frac_a);
-            let normal_b = triangle.normals[idx_non_clip].lerp(triangle.normals[idx_prev], frac_b);
+            let attrs_a = triangle.vertex_attributes[idx_non_clip]
+                .lerp(&triangle.vertex_attributes[idx_next], frac_a);
+            let attrs_b = triangle.vertex_attributes[idx_non_clip]
+                .lerp(&triangle.vertex_attributes[idx_prev], frac_b);
 
             // New triangle
             Vec::from([Triangle::new(
@@ -271,8 +336,7 @@ fn subdivide_partial_oob_triangles(triangle: Triangle) -> Vec<Triangle> {
                     vertex_non_clip,
                     clip_vertex_along_edge_a,
                 ],
-                [uv_b, triangle.uvs[idx_non_clip], uv_a],
-                [normal_b, triangle.normals[idx_non_clip], normal_a],
+                [attrs_b, triangle.vertex_attributes[idx_non_clip], attrs_a],
             )])
         }
         _ => Vec::new(),
