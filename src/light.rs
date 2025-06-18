@@ -2,7 +2,6 @@ use crate::camera::Camera;
 use crate::math::Float3;
 use crate::texture::Texture;
 
-#[derive(Debug, Clone)]
 pub struct SpotLight {
     pub color: Float3,
     pub position: Float3,
@@ -30,9 +29,9 @@ impl SpotLight {
                 position,
                 target,
                 Float3::unit_y(),
-                angle,
+                2.0 * angle,
                 (shadow_map_width as f32) / (shadow_map_height as f32),
-                -0.01,
+                -1.0,
                 -100.0,
             ),
             shadow_map: Texture::new(shadow_map_width, shadow_map_height),

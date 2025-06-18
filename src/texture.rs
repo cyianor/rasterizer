@@ -49,20 +49,27 @@ impl Texture<Float3> {
     }
 }
 
-impl<T: Copy> Texture<T> {
+impl<T> Texture<T> 
+    where T: Copy + Default {
     pub fn new(width: usize, height: usize) -> Texture<T> {
+        let mut image: Vec<T> = Vec::new();
+        image.resize(width * height * size_of::<T>(), T::default());
+
         Texture {
             width,
             height,
-            image: Vec::with_capacity(width * height),
+            image,
         }
     }
     
     pub fn sample(&self, texture_coord: Float2) -> T {
-        let x = (texture_coord.x.clamp(0.0, 1.0) * (self.width as f32 - 1.0)).round() as usize;
-        let y = (texture_coord.y.clamp(0.0, 1.0) * (self.height as f32 - 1.0)).round() as usize;
+        let x = (texture_coord.x.clamp(0.0, 1.0) * (self.width as f32 - 1.0)).floor() as usize;
+        let y = (texture_coord.y.clamp(0.0, 1.0) * (self.height as f32 - 1.0)).floor() as usize;
 
         // self.image[x * self.height as usize + y]
-        self.image[(self.width as usize - 1 - y) * self.width as usize + x]
+        // self.image[(self.width as usize - 1 - y) * self.width as usize + x]
+        self.image[y * self.width + x]
+        // self.image[(self.width - 1 - y) * self.width + x]
+
     }
 }

@@ -828,6 +828,28 @@ impl Float3 {
     pub fn lerp(&self, other: Float3, t: f32) -> Self {
         self + t * (other - self)
     }
+
+    pub fn xx(&self) -> Float2 {
+        Float2::new(self.x, self.x)
+    }
+
+    pub fn yy(&self) -> Float2 {
+        Float2::new(self.y, self.y)
+    }
+
+    pub fn xy(&self) -> Float2 {
+        Float2::new(self.x, self.y)
+    }
+
+    pub fn yx(&self) -> Float2 {
+        Float2::new(self.y, self.x)
+    }
+}
+
+impl Default for Float3 {
+    fn default() -> Self {
+        Self::zeros()
+    }
 }
 
 impl Add for Float3 {
@@ -1691,7 +1713,7 @@ impl Float4 {
         }
     }
 
-    pub fn lerp(&self, other: &Float4, t: f32) -> Self {
+    pub fn lerp(&self, other: Float4, t: f32) -> Self {
         self + t * (other - self)
     }
 }
@@ -3049,7 +3071,8 @@ pub fn point_in_triangle(a: Float2, b: Float2, c: Float2, p: Float2) -> Option<F
     let weight_b = area_cap * inverse_area_sum;
     let weight_c = area_abp * inverse_area_sum;
 
-    if total_area > 0.0 && area_abp >= 0.0 && area_bcp >= 0.0 && area_cap >= 0.0 {
+    // total_area needs to be non-zero! returns true for back and front faces
+    if area_abp >= 0.0 && area_bcp >= 0.0 && area_cap >= 0.0 {
         Some(Float3::new(weight_a, weight_b, weight_c))
     } else {
         None

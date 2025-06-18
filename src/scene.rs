@@ -3,15 +3,17 @@ use crate::light::SpotLight;
 use crate::math::Float3;
 use crate::model::{Model, read_obj_file};
 use crate::render::RenderTarget;
-use crate::shader::{DiffuseShader, DiffuseShaderWithSpotlight, TextureShader};
-use crate::texture::Texture;
+use crate::shader::DiffuseShaderWithSpotlight;
 use crate::transform::Transform;
 use raylib::RaylibHandle;
 use raylib::ffi::KeyboardKey;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct Scene {
     pub camera: Camera,
     pub models: Vec<Model>,
+    pub spotlights: Vec<Rc<RefCell<SpotLight>>>,
     pub total_frame_time: f32,
     pub average_frame_time: f32,
     pub frame_counter: i32,
@@ -31,6 +33,7 @@ impl Scene {
                 -50.0,
             ),
             models: Vec::new(),
+            spotlights: Vec::new(),
             total_frame_time: 0.0,
             average_frame_time: 0.0,
             frame_counter: 0,
@@ -39,14 +42,14 @@ impl Scene {
 
         let ambient_factor = 0.5f32;
         let direction_to_light = Float3::new(1.0, 1.0, 0.0).normalized();
-        let spotlight = SpotLight::new(
+        let spotlight = Rc::new(RefCell::new(SpotLight::new(
             Float3::new(1.0, 1.0, 1.0),
-            Float3::new(-5.0, 10.0, 0.0),
-            Float3::new(-2.0, 0.0, 1.0),
+            Float3::new(-8.0, 8.0, 0.0),
+            Float3::new(0.0, 0.0, 0.0),
             30f32.to_radians(),
-            128,
-            128,
-        );
+            2048,
+            2048,
+        )));
 
         let (
             vertices,
@@ -57,13 +60,42 @@ impl Scene {
             normal_indices,
         ) = read_obj_file("models/cube.obj", true, true).unwrap();
 
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(5.0, 1.0, 0.0), Float3::ones());
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(-3.0, 1.0, 0.0), Float3::ones());
 
         let shader = DiffuseShaderWithSpotlight::new(
             Float3::new(1.0, 0.0, 0.0),
             direction_to_light,
             ambient_factor,
-            spotlight.clone(),
+            Rc::clone(&spotlight),
+        );
+
+        scene.models.push(Model::new(
+            vertices,
+            vertex_indices,
+            texture_coords,
+            texture_coord_indices,
+            normals,
+            normal_indices,
+            transform,
+            Box::new(shader),
+        ));
+
+        let (
+            vertices,
+            vertex_indices,
+            texture_coords,
+            texture_coord_indices,
+            normals,
+            normal_indices,
+        ) = read_obj_file("models/cube.obj", true, true).unwrap();
+
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(-8.0, 8.0, 0.0), 0.1 * Float3::ones());
+
+        let shader = DiffuseShaderWithSpotlight::new(
+            Float3::new(1.0, 1.0, 1.0),
+            direction_to_light,
+            ambient_factor,
+            Rc::clone(&spotlight),
         );
 
         scene.models.push(Model::new(
@@ -92,7 +124,7 @@ impl Scene {
             Float3::new(0.0, 1.0, 0.0),
             direction_to_light,
             ambient_factor,
-            spotlight.clone(),
+            Rc::clone(&spotlight),
         );
 
         scene.models.push(Model::new(
@@ -123,7 +155,7 @@ impl Scene {
             Float3::new(0.0, 0.0, 1.0),
             direction_to_light,
             ambient_factor,
-            spotlight.clone(),
+            Rc::clone(&spotlight),
         );
 
         scene.models.push(Model::new(
@@ -136,6 +168,7 @@ impl Scene {
             transform,
             Box::new(shader),
         ));
+        scene.spotlights.push(spotlight);
 
         scene
     }
