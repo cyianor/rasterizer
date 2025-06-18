@@ -12,6 +12,7 @@ by Sebastian Lague.
 - [All the math behind the OpenGL projection matrix](https://www.songho.ca/opengl/gl_projectionmatrix.html)
 - [Overview of rasterization algorithm](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html)
 - Clipping in homogeneous space, [Blinn and Newell (1978) - Clipping using homogeneous coordinates](https://dl.acm.org/doi/10.1145/965139.807398)
+- [Perspective-correct interpolation](https://www.comp.nus.edu.sg/%7Elowkl/publications/lowk_persp_interp_techrep.pdf) - a crucial step for interpolating vertex shader outputs across fragments
 
 ## Goals
 
