@@ -40,9 +40,14 @@ impl Model {
 
 pub fn read_obj_file(
     path: &str,
-    parse_texture_coords: bool,
-    parse_normals: bool,
-) -> std::io::Result<(Vec<Float3>, Vec<usize>, Vec<Float2>, Vec<usize>, Vec<Float3>, Vec<usize>)> {
+) -> std::io::Result<(
+    Vec<Float3>,
+    Vec<usize>,
+    Vec<Float2>,
+    Vec<usize>,
+    Vec<Float3>,
+    Vec<usize>,
+)> {
     let mut vertices: Vec<Float3> = Vec::new();
     let mut texture_coords: Vec<Float2> = Vec::new();
     let mut normals: Vec<Float3> = Vec::new();
@@ -93,24 +98,29 @@ pub fn read_obj_file(
                 }
                 vertex_indices.push(indices[0].as_ref().unwrap() - 1);
 
-                if parse_texture_coords {
-                    if i >= 3 {
-                        texture_coord_indices.push(texture_coord_indices[texture_coord_indices.len() - (3 * i - 6)]);
-                        texture_coord_indices.push(texture_coord_indices[texture_coord_indices.len() - 2]);
-                    }
-                    texture_coord_indices.push(indices[1].as_ref().unwrap() - 1);
+                if i >= 3 {
+                    texture_coord_indices
+                        .push(texture_coord_indices[texture_coord_indices.len() - (3 * i - 6)]);
+                    texture_coord_indices
+                        .push(texture_coord_indices[texture_coord_indices.len() - 2]);
                 }
+                texture_coord_indices.push(indices[1].as_ref().unwrap() - 1);
 
-                if parse_normals {
-                    if i >= 3 {
-                        normal_indices.push(normal_indices[normal_indices.len() - (3 * i - 6)]);
-                        normal_indices.push(normal_indices[normal_indices.len() - 2]);
-                    }
-                    normal_indices.push(indices[2].as_ref().unwrap() - 1);
+                if i >= 3 {
+                    normal_indices.push(normal_indices[normal_indices.len() - (3 * i - 6)]);
+                    normal_indices.push(normal_indices[normal_indices.len() - 2]);
                 }
+                normal_indices.push(indices[2].as_ref().unwrap() - 1);
             }
         }
     }
 
-    Ok((vertices, vertex_indices, texture_coords, texture_coord_indices, normals, normal_indices))
+    Ok((
+        vertices,
+        vertex_indices,
+        texture_coords,
+        texture_coord_indices,
+        normals,
+        normal_indices,
+    ))
 }

@@ -7,8 +7,8 @@ use crate::shader::DiffuseShaderWithSpotlight;
 use crate::transform::Transform;
 use raylib::RaylibHandle;
 use raylib::ffi::KeyboardKey;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Scene {
     pub camera: Camera,
@@ -47,8 +47,8 @@ impl Scene {
             Float3::new(-8.0, 8.0, 0.0),
             Float3::new(0.0, 0.0, 0.0),
             30f32.to_radians(),
-            2048,
-            2048,
+            512,
+            512,
         )));
 
         let (
@@ -58,7 +58,7 @@ impl Scene {
             texture_coord_indices,
             normals,
             normal_indices,
-        ) = read_obj_file("models/cube.obj", true, true).unwrap();
+        ) = read_obj_file("models/cube.obj").unwrap();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(-3.0, 1.0, 0.0), Float3::ones());
 
@@ -87,9 +87,15 @@ impl Scene {
             texture_coord_indices,
             normals,
             normal_indices,
-        ) = read_obj_file("models/cube.obj", true, true).unwrap();
+        ) = read_obj_file("models/cube.obj").unwrap();
 
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(-8.0, 8.0, 0.0), 0.1 * Float3::ones());
+        let transform = Transform::new(
+            0.0,
+            0.0,
+            0.0,
+            Float3::new(-8.0, 8.0, 0.0),
+            0.1 * Float3::ones(),
+        );
 
         let shader = DiffuseShaderWithSpotlight::new(
             Float3::new(1.0, 1.0, 1.0),
@@ -116,7 +122,7 @@ impl Scene {
             texture_coord_indices,
             normals,
             normal_indices,
-        ) = read_obj_file("models/dragon.obj", true, true).unwrap();
+        ) = read_obj_file("models/dragon.obj").unwrap();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 4.0, 0.0), Float3::ones());
 
@@ -145,7 +151,7 @@ impl Scene {
             texture_coord_indices,
             normals,
             normal_indices,
-        ) = read_obj_file("models/floor.obj", true, true).unwrap();
+        ) = read_obj_file("models/floor.obj").unwrap();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), Float3::ones());
 
