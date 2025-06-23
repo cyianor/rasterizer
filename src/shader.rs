@@ -220,7 +220,7 @@ impl Shader for DiffuseShaderWithSpotlight {
         // Goal here: avoid shadow acne without getting peter panning
         // TODO: Find better way to choose bias
         let bias = (0.5 * (1.0 - normal.dot(dir_to_light))).max(0.05);
-        // let bias = 0.05;
+        // let bias = 0.0;
 
         let spot_intensity = if dir_to_light.dot(dir_to_target) > spotlight.angle.cos()
             && current_depth + bias >= closest_depth

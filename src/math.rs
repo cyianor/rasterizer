@@ -3058,7 +3058,7 @@ pub fn signed_triangle_area(a: Float2, b: Float2, c: Float2) -> f32 {
     ac.dot(ab_perp) / 2.0
 }
 
-pub fn point_in_triangle(a: Float2, b: Float2, c: Float2, p: Float2) -> Option<Float3> {
+pub fn point_in_triangle_front_face(a: Float2, b: Float2, c: Float2, p: Float2) -> Option<Float3> {
     // Test if point is on right side of each edge segment
     let area_abp = signed_triangle_area(a, b, p);
     let area_bcp = signed_triangle_area(b, c, p);
@@ -3071,8 +3071,27 @@ pub fn point_in_triangle(a: Float2, b: Float2, c: Float2, p: Float2) -> Option<F
     let weight_b = area_cap * inverse_area_sum;
     let weight_c = area_abp * inverse_area_sum;
 
-    // total_area needs to be non-zero! returns true for back and front faces
-    if area_abp >= 0.0 && area_bcp >= 0.0 && area_cap >= 0.0 {
+    if total_area > 0.0 && area_abp >= 0.0 && area_bcp >= 0.0 && area_cap >= 0.0 {
+        Some(Float3::new(weight_a, weight_b, weight_c))
+    } else {
+        None
+    }
+}
+
+pub fn point_in_triangle_back_face(a: Float2, b: Float2, c: Float2, p: Float2) -> Option<Float3> {
+    // Test if point is on right side of each edge segment
+    let area_abp = signed_triangle_area(a, b, p);
+    let area_bcp = signed_triangle_area(b, c, p);
+    let area_cap = signed_triangle_area(c, a, p);
+
+    // Weighting factors (barycentric coordinates)
+    let total_area = area_abp + area_bcp + area_cap;
+    let inverse_area_sum = 1.0 / total_area;
+    let weight_a = area_bcp * inverse_area_sum;
+    let weight_b = area_cap * inverse_area_sum;
+    let weight_c = area_abp * inverse_area_sum;
+
+    if total_area < 0.0 && area_abp <= 0.0 && area_bcp <= 0.0 && area_cap <= 0.0 {
         Some(Float3::new(weight_a, weight_b, weight_c))
     } else {
         None

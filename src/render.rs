@@ -2,7 +2,10 @@ use core::f32;
 use std::fmt::Debug;
 use std::ops::{Add, Mul};
 
-use crate::math::{Float2, Float3, Float4, point_in_triangle, signed_triangle_area};
+use crate::math::{
+    Float2, Float3, Float4, point_in_triangle_back_face, point_in_triangle_front_face,
+    signed_triangle_area,
+};
 use crate::scene::Scene;
 use crate::shader::ModelShader;
 
@@ -217,7 +220,7 @@ impl RenderTarget {
                     ),
                 ];
 
-                // Front-face culling
+                // Back-face culling
                 if signed_triangle_area(a, b, c) <= 0.0 {
                     continue;
                 }
@@ -247,7 +250,7 @@ impl RenderTarget {
                 for y in bbox_start_y..bbox_end_y {
                     for x in bbox_start_x..bbox_end_x {
                         if let Some(weights) =
-                            point_in_triangle(a, b, c, Float2::new(x as f32, y as f32))
+                            point_in_triangle_front_face(a, b, c, Float2::new(x as f32, y as f32))
                         {
                             // Depth like in OpenGL
                             // Perspective projection leads to
@@ -259,18 +262,20 @@ impl RenderTarget {
                             //     = (2/z - (1/near + 1/far) + (1/far - 1/near)) / (2 * (1/far - 1/near))
                             //     = (1/z - 1/near) / (1/far - 1/near) = a * 1/z + b
                             let depth = depths.dot(weights);
-                            if depth > scene.spotlights[0].borrow().shadow_map.image[y * spotlight_width + x]
+                            if depth
+                                > scene.spotlights[0].borrow().shadow_map.image
+                                    [y * spotlight_width + x]
                                 || depth > 1.0
                             {
                                 continue;
                             }
 
-                            scene.spotlights[0].borrow_mut().shadow_map.image[y * spotlight_width + x] = depth;
+                            scene.spotlights[0].borrow_mut().shadow_map.image
+                                [y * spotlight_width + x] = depth;
                         }
                     }
                 }
             }
-
 
             // Second render pass
             // Render from main cameras perspective
@@ -358,7 +363,7 @@ impl RenderTarget {
                 for y in bbox_start_y..bbox_end_y {
                     for x in bbox_start_x..bbox_end_x {
                         if let Some(weights) =
-                            point_in_triangle(a, b, c, Float2::new(x as f32, y as f32))
+                            point_in_triangle_front_face(a, b, c, Float2::new(x as f32, y as f32))
                         {
                             // Depth like in OpenGL
                             // Perspective projection leads to
