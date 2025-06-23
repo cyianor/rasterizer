@@ -1,3 +1,6 @@
+use rand::distr::uniform::UniformSampler;
+use rand::distr::{Distribution, Uniform};
+
 use crate::light::SpotLight;
 use crate::math::{Float3, Float4, Float4x4};
 use crate::render::VertexAttributes;
@@ -189,50 +192,71 @@ impl Shader for DiffuseShaderWithSpotlight {
         let dir_to_light = to_light.normalized();
         let dir_to_target = (spotlight.position - spotlight.target).normalized();
         let light_fragment = attrs.light_vertex.xyz() / attrs.light_vertex.w * 0.5 + 0.5;
-        let (current_depth, closest_depth) = if light_fragment.x >= 0.0
+        // Goal here: avoid shadow acne without getting peter panning
+        // TODO: Find better way to choose bias
+        let bias = (0.5 * (1.0 - normal.dot(dir_to_light))).max(0.2);
+        // let bias = 0.0;
+
+        let percentage_in_shadow = if light_fragment.x >= 0.0
             && light_fragment.x <= 1.0
             && light_fragment.y >= 0.0
             && light_fragment.y <= 1.0
             && light_fragment.z >= 0.0
             && light_fragment.z <= 1.0
         {
-            let x = (light_fragment.x * spotlight.shadow_map.width as f32)
-                .clamp(0.0, spotlight.shadow_map.width as f32 - 1.0) as usize;
-            let y = ((1.0 - light_fragment.y) * spotlight.shadow_map.height as f32)
-                .clamp(0.0, spotlight.shadow_map.height as f32 - 1.0) as usize;
+            // Percentage-closer filtering
+            let linear_frag_z = linearize_depth(
+                light_fragment.z,
+                spotlight.camera.near,
+                spotlight.camera.far,
+            );
 
-            (
-                linearize_depth(
-                    light_fragment.z,
-                    spotlight.camera.near,
-                    spotlight.camera.far,
-                ),
-                linearize_depth(
-                    spotlight.shadow_map.image[y * spotlight.shadow_map.width + x],
-                    spotlight.camera.near,
-                    spotlight.camera.far,
-                ),
-            )
+            let sampler = Uniform::new(0.0, 1.0).unwrap();
+            let mut rng = rand::rng();
+            let width = spotlight.shadow_map.width as f32 - 1.0;
+            let height = spotlight.shadow_map.height as f32 - 1.0;
+            // let xsign = [0.0];
+            // let ysign = [0.0];
+            let xsign = [1.0, -1.0];
+            let ysign = [1.0, -1.0];
+            // let xsign = [1.5, -0.5, -1.5];
+            // let ysign = [1.5, -0.5, -1.5];
+            let repeats = 1;
+            let mut p = 0.0;
+            for _ in 0..repeats {
+                for xs in xsign {
+                    for ys in ysign {
+                        let x = (light_fragment.x * width + xs * sampler.sample(&mut rng))
+                            .clamp(0.0, width) as usize;
+                        let y = ((1.0 - light_fragment.y) * height + ys * sampler.sample(&mut rng))
+                            .clamp(0.0, height) as usize;
+
+                        p += (linear_frag_z + bias
+                            >= linearize_depth(
+                                spotlight.shadow_map.image[y * spotlight.shadow_map.width + x],
+                                spotlight.camera.near,
+                                spotlight.camera.far,
+                            )) as i32 as f32;
+                    }
+                }
+            }
+
+            p / (repeats as f32 * (xsign.len() * xsign.len()) as f32)
         } else {
-            (0.0, f32::NEG_INFINITY)
+            0.0
         };
 
-        // Goal here: avoid shadow acne without getting peter panning
-        // TODO: Find better way to choose bias
-        let bias = (0.5 * (1.0 - normal.dot(dir_to_light))).max(0.05);
-        // let bias = 0.0;
-
-        let spot_intensity = if dir_to_light.dot(dir_to_target) > spotlight.angle.cos()
-            && current_depth + bias >= closest_depth
-        {
+        let spot_intensity = if dir_to_light.dot(dir_to_target) > spotlight.angle.cos() {
             normal.dot(dir_to_light).max(0.0) / to_light.norm()
         } else {
             0.0
         };
 
+        // Float3::new(percentage_in_shadow, percentage_in_shadow, percentage_in_shadow)
+
         let color = self.color * 0.1
             + self.color * light_intensity * 0.2
-            + self.color * spotlight.color * spot_intensity * 2.5;
+            + self.color * spotlight.color * spot_intensity * percentage_in_shadow * 2.5;
         // Gamma-correction
         color.powf(1.0 / 2.2)
     }

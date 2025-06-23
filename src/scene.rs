@@ -47,8 +47,8 @@ impl Scene {
             Float3::new(-8.0, 8.0, 0.0),
             Float3::new(0.0, 0.0, 0.0),
             30f32.to_radians(),
-            512,
-            512,
+            2048,
+            2048,
         )));
 
         let (
