@@ -7,7 +7,7 @@ use crate::math::{
     signed_triangle_area,
 };
 use crate::scene::Scene;
-use crate::shader::ModelShader;
+use crate::shader::{RenderPassShader, ShadowPassShader};
 
 pub trait LinearInterpolation {
     fn lerp(&self, other: &Self, proportion: f32) -> Self;
@@ -152,10 +152,12 @@ impl RenderTarget {
     }
 
     pub fn render(&mut self, scene: &mut Scene) {
+        // Two-pass render pipeline
+        //
+        // First render pass
+        // Render scene from lights perspective
         for model in scene.models.iter() {
             let model_world_matrix = model.transform.world_matrix();
-            let camera_view_proj_matrix =
-                &scene.camera.projection * scene.camera.transform.inverse_world_matrix();
             let spotlight = scene.spotlights[0].borrow();
             let light_view_proj_matrix: crate::math::Float4x4 =
                 spotlight.camera.projection * spotlight.camera.transform.inverse_world_matrix();
@@ -164,33 +166,22 @@ impl RenderTarget {
             drop(spotlight);
 
             // Vertex shader
-            let model_shader = ModelShader::new(
-                model_world_matrix,
-                camera_view_proj_matrix,
-                light_view_proj_matrix,
-            );
-            let out = model_shader.transform(&model.vertices, &model.normals);
-
-            // Two-pass render pipeline
-            // First render pass
-            // Render scene from lights perspective
+            let model_shader = ShadowPassShader::new(model_world_matrix, light_view_proj_matrix);
+            let out = model_shader.transform(&model.vertices);
 
             // Assemble, cull, and subdivide (if necessary) triangles
             let triangles = model
                 .vertex_indices
                 .chunks_exact(3)
                 .filter(|vs| {
-                    (out.light_vertices[vs[0]].1
-                        & out.light_vertices[vs[1]].1
-                        & out.light_vertices[vs[2]].1)
-                        == 0
+                    (out.vertices[vs[0]].1 & out.vertices[vs[1]].1 & out.vertices[vs[2]].1) == 0
                 })
                 .map(|vs| {
                     Triangle::new(
                         [
-                            out.light_vertices[vs[0]].0,
-                            out.light_vertices[vs[1]].0,
-                            out.light_vertices[vs[2]].0,
+                            out.vertices[vs[0]].0,
+                            out.vertices[vs[1]].0,
+                            out.vertices[vs[2]].0,
                         ],
                         [
                             EmptyAttributes(()),
@@ -276,6 +267,24 @@ impl RenderTarget {
                     }
                 }
             }
+        }
+
+        for model in scene.models.iter() {
+            let model_world_matrix = model.transform.world_matrix();
+            let camera_view_proj_matrix =
+                &scene.camera.projection * scene.camera.transform.inverse_world_matrix();
+            let spotlight = scene.spotlights[0].borrow();
+            let light_view_proj_matrix: crate::math::Float4x4 =
+                spotlight.camera.projection * spotlight.camera.transform.inverse_world_matrix();
+            drop(spotlight);
+
+            // Vertex shader
+            let model_shader = RenderPassShader::new(
+                model_world_matrix,
+                camera_view_proj_matrix,
+                light_view_proj_matrix,
+            );
+            let out = model_shader.transform(&model.vertices, &model.normals);
 
             // Second render pass
             // Render from main cameras perspective

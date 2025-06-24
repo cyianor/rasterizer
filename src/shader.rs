@@ -22,35 +22,70 @@ fn culling_bitmask(vertex: &Float4) -> u8 {
         + ((vertex.z - vertex.w <= 0.0) as u8)
 }
 
-impl ShadowMapShader {
-    pub fn new(transformation: Float4x4) -> Self {
-        ShadowMapShader { transformation }
-    }
-
-    pub fn transform(&self, vertices: Vec<Float3>) -> Vec<(Float4, u8)> {
-        vertices
-            .into_iter()
-            .map(|v| &self.transformation * Float4::from_point(v))
-            .map(|v| (v, culling_bitmask(&v)))
-            .collect::<Vec<_>>()
-    }
-}
-
-pub struct ModelShader {
+/// Vertex shader used on each model during shadow pass
+pub struct ShadowPassShader {
+    /// Homogeneous matrix describing the transformation from model to world space
     pub model_world_matrix: Float4x4,
-    pub camera_view_proj_matrix: Float4x4,
+    /// Homogeneous matrix describing the transformation from world space to the
+    /// light's projected view space
     pub light_view_proj_matrix: Float4x4,
 }
 
-pub struct ModelShaderOutput {
+/// Output of the shadow pass vertex shader
+pub struct ShadowPassShaderOutput {
+    /// Transformed homogeneous vertices in light's clip space and culling bit-masks
     pub vertices: Vec<(Float4, u8)>,
+}
+
+impl ShadowPassShader {
+    /// Create a new shadow pass vertex shader
+    pub fn new(model_world_matrix: Float4x4, light_view_proj_matrix: Float4x4) -> Self {
+        Self {
+            model_world_matrix,
+            light_view_proj_matrix,
+        }
+    }
+
+    /// Apply vertex shader to vertices in model space
+    pub fn transform(&self, vertices: &Vec<Float3>) -> ShadowPassShaderOutput {
+        let transformation = self.light_view_proj_matrix * self.model_world_matrix;
+
+        let vertices = vertices
+            .iter()
+            .map(|v| &transformation * Float4::from_point(*v))
+            .map(|v| (v, culling_bitmask(&v)))
+            .collect::<Vec<_>>();
+
+        ShadowPassShaderOutput { vertices }
+    }
+}
+
+/// Vertex shader used on each model during render pass
+pub struct RenderPassShader {
+    /// Homogeneous matrix describing the transformation from model to world space
+    pub model_world_matrix: Float4x4,
+    /// Homogeneous matrix describing the transformation from world space to the
+    /// camera's projected view space
+    pub camera_view_proj_matrix: Float4x4,
+    /// Homogeneous matrix describing the transformation from world space to the
+    /// light's projected view space
+    pub light_view_proj_matrix: Float4x4,
+}
+
+/// Output of the render pass vertex shader
+pub struct RenderPassShaderOutput {
+    /// Transformed homogeneous vertices in camera's clip space and culling bit-masks
+    pub vertices: Vec<(Float4, u8)>,
+    /// Transformed homogeneous vertices in light's clip space and culling bit-masks
     pub light_vertices: Vec<(Float4, u8)>,
+    /// Transformed vertices in world space
     pub vertices_attr: Vec<Float3>,
-    pub light_vertices_attr: Vec<Float4>,
+    /// Transformed normals rotated to world space
     pub normals: Vec<Float3>,
 }
 
-impl ModelShader {
+impl RenderPassShader {
+    /// Create a new render pass vertex shader
     pub fn new(
         model_world_matrix: Float4x4,
         camera_view_proj_matrix: Float4x4,
@@ -63,7 +98,12 @@ impl ModelShader {
         }
     }
 
-    pub fn transform(&self, vertices: &Vec<Float3>, normals: &Vec<Float3>) -> ModelShaderOutput {
+    /// Apply vertex shader to vertices and normals in model space
+    pub fn transform(
+        &self,
+        vertices: &Vec<Float3>,
+        normals: &Vec<Float3>,
+    ) -> RenderPassShaderOutput {
         let world_vertices = vertices
             .iter()
             .map(|v| &self.model_world_matrix * Float4::from_point(*v))
@@ -86,11 +126,6 @@ impl ModelShader {
             .map(|v| v.xyz() / v.w)
             .collect::<Vec<_>>();
 
-        let light_vertices_attr = light_vertices
-            .iter()
-            .map(|v| v.0) // v.0.xyz() / v.0.w)
-            .collect::<Vec<_>>();
-
         let normals = normals
             .iter()
             .map(|n| {
@@ -100,11 +135,10 @@ impl ModelShader {
             })
             .collect::<Vec<_>>();
 
-        ModelShaderOutput {
+        RenderPassShaderOutput {
             vertices,
             light_vertices,
             vertices_attr,
-            light_vertices_attr,
             normals,
         }
     }
