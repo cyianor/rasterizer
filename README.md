@@ -1,8 +1,18 @@
 # Software rasterizer
 
-Building a simple software rasterizer in Rust mostly following
+Building a simple software rasterizer in Rust. Initially, the project mostly followed
 [Coding Adventure: Software Rasterizer](https://www.youtube.com/watch?v=yyJ-hdISgnw&t=2436s)
-by Sebastian Lague.
+by Sebastian Lague with some adjustments to more closely follow modern
+graphics APIs.
+As the project grew I got interested in implementing more features such as lights,
+shadows and more advanced shading.
+
+Performance for pure rasterization is pretty decent but shadows and lights really
+slow things down. The design of the rasterizer follows modern graphics APIs
+(OpenGL, DirectX, Vulkan) which is probably part of the problem why it is slow.
+These APIs target highly parallelized and optimized GPUs which can solve many
+of the problems encountered in rasterization much more efficiently than
+implementing those same algorithms on the CPU.
 
 ## Other sources
 

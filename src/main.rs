@@ -1,3 +1,5 @@
+// #![deny(missing_docs)]
+
 use std::f32;
 
 use rastr::math::Float3;

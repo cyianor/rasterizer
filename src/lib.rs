@@ -1,3 +1,5 @@
+// #![deny(missing_docs)]
+
 pub mod math;
 pub mod render;
 pub mod model;

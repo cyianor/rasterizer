@@ -9,10 +9,13 @@ use crate::math::{
 use crate::scene::Scene;
 use crate::shader::{RenderPassShader, ShadowPassShader};
 
+/// Trait used for types that support linear interpolation
 pub trait LinearInterpolation {
+    /// Linearly interpolates between two instances by a proportion in [0.0, 1.0]
     fn lerp(&self, other: &Self, proportion: f32) -> Self;
 }
 
+/// A set of empty vertex attributes
 #[derive(Debug, Clone, Copy)]
 pub struct EmptyAttributes(());
 
@@ -38,15 +41,21 @@ impl Mul<f32> for EmptyAttributes {
     }
 }
 
+/// A set of vertex attributes used for shading
 #[derive(Debug, Clone, Copy)]
 pub struct VertexAttributes {
+    /// Vertex position in world space
     pub vertex: Float3,
+    /// Homogeneous vertex position in light's clip space
     pub light_vertex: Float4,
+    /// Texture coordinates
     pub uv: Float2,
+    /// Normal
     pub normal: Float3,
 }
 
 impl VertexAttributes {
+    /// Create new vertex attributes
     pub fn new(vertex: Float3, light_vertex: Float4, uv: Float2, normal: Float3) -> Self {
         Self {
             vertex,
@@ -122,15 +131,22 @@ where
     }
 }
 
+/// A render target used for presenting the result of rasterization
 pub struct RenderTarget {
+    /// Width of the render target
     pub width: usize,
+    /// Height of the render target
     pub height: usize,
+    /// Width and height stored as a vector
     pub size: Float2,
+    /// Color buffer in RGB format
     pub color_buffer: Vec<Float3>,
+    /// Depth buffer
     pub depth_buffer: Vec<f32>,
 }
 
 impl RenderTarget {
+    /// Create a new render target
     pub fn new(width: usize, height: usize) -> Self {
         let mut color_buffer: Vec<Float3> = Vec::new();
         color_buffer.resize(width * height, Float3::zeros());
@@ -146,11 +162,21 @@ impl RenderTarget {
         }
     }
 
-    pub fn clear(&mut self, color: Float3) {
-        self.color_buffer.fill(color);
+    /// Clear the current content of the render target and fill
+    /// color buffer with a clear color
+    pub fn clear(&mut self, clear_color: Float3) {
+        self.color_buffer.fill(clear_color);
         self.depth_buffer.fill(f32::INFINITY);
     }
 
+    /// Render the provided scene
+    ///
+    /// Currently, this is a two pass rendering system.
+    ///
+    /// 1. Render from spotlight's POV to a shadow map
+    /// 2. Render from camera's POV. Use vertex positions in spotlight's POV to
+    ///    compare to shadow map. If depth is lower than in shadow map, then the
+    ///    fragment is in shadow.
     pub fn render(&mut self, scene: &mut Scene) {
         // Two-pass render pipeline
         //
@@ -308,19 +334,19 @@ impl RenderTarget {
                         [
                             VertexAttributes::new(
                                 out.vertices_attr[vs[0]],
-                                out.light_vertices_attr[vs[0]],
+                                out.light_vertices[vs[0]].0,
                                 model.texture_coords[uvs[0]],
                                 out.normals[ns[0]],
                             ),
                             VertexAttributes::new(
                                 out.vertices_attr[vs[1]],
-                                out.light_vertices_attr[vs[1]],
+                                out.light_vertices[vs[1]].0,
                                 model.texture_coords[uvs[1]],
                                 out.normals[ns[1]],
                             ),
                             VertexAttributes::new(
                                 out.vertices_attr[vs[2]],
-                                out.light_vertices_attr[vs[2]],
+                                out.light_vertices[vs[2]].0,
                                 model.texture_coords[uvs[2]],
                                 out.normals[ns[2]],
                             ),
@@ -404,6 +430,7 @@ impl RenderTarget {
     }
 }
 
+/// Convert a color buffer in RGB format to a byte arrow with given dimensions
 pub fn color_buffer_to_byte_array(
     color_buffer: &Vec<Float3>,
     width: usize,
@@ -421,6 +448,11 @@ pub fn color_buffer_to_byte_array(
     }
 }
 
+/// Convert a depth buffer to a byte arrow with given dimensions
+///
+/// If requested, depth values are linearized with the given near and far values.
+/// This is relevant if a perspective transform was applied to compute the depth
+/// values.
 pub fn depth_buffer_to_byte_array(
     depth_buffer: &Vec<f32>,
     width: usize,

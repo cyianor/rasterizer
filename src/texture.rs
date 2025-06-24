@@ -2,14 +2,25 @@ use crate::math::{Float2, Float3};
 use png::{ColorType, Decoder};
 use std::fs::File;
 
+/// A texture of generic type `T`
 #[derive(Debug, Clone)]
-pub struct Texture<T> {
+pub struct Texture<T>
+where
+    T: Copy + Default,
+{
+    /// Width of the texture
     pub width: usize,
+    /// Height of the texture
     pub height: usize,
+    /// Image data
     pub image: Vec<T>,
 }
 
 impl Texture<Float3> {
+    /// Load color-texture from PNG file.
+    ///
+    /// Colors are represented as [Float3's](crate::math::Float3) with each
+    /// component representing red, green, or blue in the interval [0.0, 1.0].
     pub fn from_png(path: &str) -> Texture<Float3> {
         let decoder = Decoder::new(File::open(path).unwrap());
         let mut reader = decoder.read_info().unwrap();
@@ -49,8 +60,11 @@ impl Texture<Float3> {
     }
 }
 
-impl<T> Texture<T> 
-    where T: Copy + Default {
+impl<T> Texture<T>
+where
+    T: Copy + Default,
+{
+    /// Create a new texture
     pub fn new(width: usize, height: usize) -> Texture<T> {
         let mut image: Vec<T> = Vec::new();
         image.resize(width * height * size_of::<T>(), T::default());
@@ -61,15 +75,14 @@ impl<T> Texture<T>
             image,
         }
     }
-    
+
+    /// Sample from the texture at coordinates (u, v) in [0, 1] x [0, 1]
+    /// 
+    /// Note that y is inverted from 0 to 1 to 1 to 0 instead.
     pub fn sample(&self, texture_coord: Float2) -> T {
         let x = (texture_coord.x.clamp(0.0, 1.0) * (self.width as f32 - 1.0)).floor() as usize;
-        let y = (texture_coord.y.clamp(0.0, 1.0) * (self.height as f32 - 1.0)).floor() as usize;
+        let y = ((1.0 - texture_coord.y).clamp(0.0, 1.0) * (self.height as f32 - 1.0)).floor() as usize;
 
-        // self.image[x * self.height as usize + y]
-        // self.image[(self.width as usize - 1 - y) * self.width as usize + x]
         self.image[y * self.width + x]
-        // self.image[(self.width - 1 - y) * self.width + x]
-
     }
 }

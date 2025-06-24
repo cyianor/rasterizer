@@ -10,17 +10,24 @@ use raylib::ffi::KeyboardKey;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// Description of the rendered scene
 pub struct Scene {
+    /// Main camera
     pub camera: Camera,
+    /// Triangle models
     pub models: Vec<Model>,
+    /// Spotlights
     pub spotlights: Vec<Rc<RefCell<SpotLight>>>,
-    pub total_frame_time: f32,
+    total_frame_time: f32,
+    /// Average time necessary to compute a frame within the last second
     pub average_frame_time: f32,
-    pub frame_counter: i32,
+    frame_counter: i32,
+    /// Number of frames computed within the last second
     pub last_frame_counter: i32,
 }
 
 impl Scene {
+    /// Create a new scene
     pub fn new(aspect_ratio: f32) -> Self {
         let mut scene = Self {
             camera: Camera::new(
@@ -50,6 +57,35 @@ impl Scene {
             2048,
             2048,
         )));
+
+        let (
+            vertices,
+            vertex_indices,
+            texture_coords,
+            texture_coord_indices,
+            normals,
+            normal_indices,
+        ) = read_obj_file("models/dragon.obj").unwrap();
+
+        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 4.0, 0.0), Float3::ones());
+
+        let shader = DiffuseShaderWithSpotlight::new(
+            Float3::new(0.0, 1.0, 0.0),
+            direction_to_light,
+            ambient_factor,
+            Rc::clone(&spotlight),
+        );
+
+        scene.models.push(Model::new(
+            vertices,
+            vertex_indices,
+            texture_coords,
+            texture_coord_indices,
+            normals,
+            normal_indices,
+            transform,
+            Box::new(shader),
+        ));
 
         let (
             vertices,
@@ -122,35 +158,6 @@ impl Scene {
             texture_coord_indices,
             normals,
             normal_indices,
-        ) = read_obj_file("models/dragon.obj").unwrap();
-
-        let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 4.0, 0.0), Float3::ones());
-
-        let shader = DiffuseShaderWithSpotlight::new(
-            Float3::new(0.0, 1.0, 0.0),
-            direction_to_light,
-            ambient_factor,
-            Rc::clone(&spotlight),
-        );
-
-        scene.models.push(Model::new(
-            vertices,
-            vertex_indices,
-            texture_coords,
-            texture_coord_indices,
-            normals,
-            normal_indices,
-            transform,
-            Box::new(shader),
-        ));
-
-        let (
-            vertices,
-            vertex_indices,
-            texture_coords,
-            texture_coord_indices,
-            normals,
-            normal_indices,
         ) = read_obj_file("models/floor.obj").unwrap();
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 0.0, 0.0), Float3::ones());
@@ -179,6 +186,9 @@ impl Scene {
         scene
     }
 
+    /// Update the scene
+    /// 
+    /// In this function animations, model and camera movement are handled.
     pub fn update(&mut self, target: &RenderTarget, rl: &RaylibHandle) {
         let delta_time = rl.get_frame_time();
         self.total_frame_time += delta_time;
@@ -190,7 +200,7 @@ impl Scene {
             self.frame_counter = 0;
         }
         // rotate cube
-        self.models[0].transform.yaw += delta_time;
+        self.models[1].transform.yaw += delta_time;
 
         // rotate camera with mouse
         const MOUSE_SENSITIVITY: f32 = 2.0;

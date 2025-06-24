@@ -3,18 +3,31 @@ use crate::shader::Shader;
 use crate::transform::Transform;
 use std::fs::read_to_string;
 
+/// A model described by triangles with normals and texture coordinates
 pub struct Model {
+    /// Vertices making up the model
     pub vertices: Vec<Float3>,
+    /// Indices in groups of 3 describing the triangles.
+    /// Indices are with referece to [vertices](Model::vertices)
     pub vertex_indices: Vec<usize>,
+    /// Texture coordinates
     pub texture_coords: Vec<Float2>,
+    /// Indices of texture coordinates in groups of 3 for each triangle.
+    /// Indices are with referece to [texture_coords](Model::texture_coords)
     pub texture_coord_indices: Vec<usize>,
+    /// Normals at each vertex
     pub normals: Vec<Float3>,
+    /// Indices of normals in groups of 3 for each triangle.
+    /// Indices are with referece to [normals](Model::normals)
     pub normal_indices: Vec<usize>,
+    /// Transformation of the model
     pub transform: Transform,
+    /// Pixel shader applied to model
     pub shader: Box<dyn Shader>,
 }
 
 impl Model {
+    /// Create a new model
     pub fn new(
         vertices: Vec<Float3>,
         vertex_indices: Vec<usize>,
@@ -38,6 +51,10 @@ impl Model {
     }
 }
 
+/// Read an OBJ file
+/// 
+/// Upon success, the function returns a tuple containing
+/// vertices, vertex_indices, texture_coords, texture_coord_indices, normals, and normal_indices.
 pub fn read_obj_file(
     path: &str,
 ) -> std::io::Result<(

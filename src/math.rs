@@ -2545,6 +2545,37 @@ impl Float4x4 {
         )
     }
 
+    pub fn orthographic_projection(
+        near: f32,
+        far: f32,
+        left: f32,
+        right: f32,
+        top: f32,
+        bottom: f32,
+    ) -> Self {
+        Self::new(
+            Float4::new(
+                2.0 * near / (right - left),
+                0.0,
+                -(right + left) / (right - left),
+                0.0,
+            ),
+            Float4::new(
+                0.0,
+                2.0 * near / (top - bottom),
+                -(top + bottom) / (top - bottom),
+                0.0,
+            ),
+            Float4::new(
+                0.0,
+                0.0,
+                (far + near) / (far - near),
+                -2.0 * far * near / (far - near),
+            ),
+            Float4::new(0.0, 0.0, 1.0, 0.0),
+        )
+    }
+
     pub fn perspective_projection(
         near: f32,
         far: f32,

@@ -1,16 +1,10 @@
-use rand::distr::uniform::UniformSampler;
-use rand::distr::{Distribution, Uniform};
-
 use crate::light::SpotLight;
 use crate::math::{Float3, Float4, Float4x4};
 use crate::render::VertexAttributes;
 use crate::texture::Texture;
+use rand::distr::{Distribution, Uniform};
 use std::cell::RefCell;
 use std::rc::Rc;
-
-pub struct ShadowMapShader {
-    pub transformation: Float4x4,
-}
 
 fn culling_bitmask(vertex: &Float4) -> u8 {
     (((vertex.w >= 0.0) as u8) << 6)
@@ -144,15 +138,20 @@ impl RenderPassShader {
     }
 }
 
+/// Trait describing a pixel shader
 pub trait Shader {
+    /// Given vertex attributes a pixel shader generates a color
     fn color(&self, attrs: VertexAttributes) -> Float3;
 }
 
+/// Pixel shader presenting a texture
 pub struct TextureShader {
+    /// The RGB texture to be sampled in the shader
     pub texture: Texture<Float3>,
 }
 
 impl TextureShader {
+    /// Create a new texture shader
     pub fn new(texture: Texture<Float3>) -> Self {
         TextureShader { texture }
     }
@@ -164,17 +163,22 @@ impl Shader for TextureShader {
     }
 }
 
+/// A diffuse color shader
 pub struct DiffuseShader {
+    /// Object color
     pub color: Float3,
+    /// Direction to surrounding light
     pub direction_to_light: Float3,
+    /// Intensity of ambient light
     pub ambient_factor: f32,
 }
 
 impl DiffuseShader {
+    /// Create a new diffuse shader
     pub fn new(color: Float3, direction_to_light: Float3, ambient_factor: f32) -> Self {
         DiffuseShader {
             color,
-            direction_to_light,
+            direction_to_light: direction_to_light.normalized(),
             ambient_factor,
         }
     }
@@ -189,14 +193,20 @@ impl Shader for DiffuseShader {
     }
 }
 
+/// A diffuse color shader supporting one spotlight
 pub struct DiffuseShaderWithSpotlight {
+    /// Color of the object
     pub color: Float3,
+    /// Direction to surrounding light
     pub direction_to_light: Float3,
+    /// Intensity of ambient light
     pub ambient_factor: f32,
+    /// Spotlight
     pub spotlight: Rc<RefCell<SpotLight>>,
 }
 
 impl DiffuseShaderWithSpotlight {
+    /// Create a new shader
     pub fn new(
         color: Float3,
         direction_to_light: Float3,
