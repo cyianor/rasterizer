@@ -16,6 +16,10 @@ fn culling_bitmask(vertex: &Float4) -> u8 {
         + ((vertex.z - vertex.w <= 0.0) as u8)
 }
 
+pub trait VertexShader<I, O> {
+    fn transform(&self, input: &I) -> O;
+}
+
 /// Vertex shader used on each model during shadow pass
 pub struct ShadowPassShader {
     /// Homogeneous matrix describing the transformation from model to world space
@@ -25,10 +29,37 @@ pub struct ShadowPassShader {
     pub light_view_proj_matrix: Float4x4,
 }
 
-/// Output of the shadow pass vertex shader
+/// Input to the shadow pass vertex shader
+pub struct ShadowPassShaderInput<'a> {
+    /// Vertices in model space
+    pub vertices: &'a Vec<Float3>,
+}
+
+impl<'a> ShadowPassShaderInput<'a> {
+    /// Create a new input to the shadow pass vertex shader
+    pub fn new(vertices: &'a Vec<Float3>) -> Self {
+        Self { vertices }
+    }
+}
+
+/// Output from the shadow pass vertex shader
 pub struct ShadowPassShaderOutput {
-    /// Transformed homogeneous vertices in light's clip space and culling bit-masks
-    pub vertices: Vec<(Float4, u8)>,
+    /// Transformed homogeneous vertices in light's clip space
+    pub vertices: Vec<Float4>,
+    /// Bit-masks for culling of triangles, stored by vertex
+    ///
+    /// Stores 7 bits for culling:
+    /// - Bit 0 is 1 if `vertex.z - vertex.w <= 0.0`
+    /// - Bit 1 is 1 if `vertex.z + vertex.w >= 0.0`
+    /// - Bit 2 is 1 if `vertex.y - vertex.w <= 0.0`
+    /// - Bit 3 is 1 if `vertex.y + vertex.w >= 0.0`
+    /// - Bit 4 is 1 if `vertex.x - vertex.w <= 0.0`
+    /// - Bit 5 is 1 if `vertex.x + vertex.w >= 0.0`
+    /// - Bit 6 is 1 if `vertex.w >= 0.0`
+    ///
+    /// A triangle is culled if the bitmasks cb0, cb1, cb2 of the three vertices
+    /// fulfill `cb0 & cb1 & cb2 > 0`.
+    pub culling_bitmasks: Vec<u8>,
 }
 
 impl ShadowPassShader {
@@ -39,18 +70,28 @@ impl ShadowPassShader {
             light_view_proj_matrix,
         }
     }
+}
 
+impl<'a> VertexShader<ShadowPassShaderInput<'a>, ShadowPassShaderOutput> for ShadowPassShader {
     /// Apply vertex shader to vertices in model space
-    pub fn transform(&self, vertices: &Vec<Float3>) -> ShadowPassShaderOutput {
+    fn transform(&self, input: &ShadowPassShaderInput<'a>) -> ShadowPassShaderOutput {
         let transformation = self.light_view_proj_matrix * self.model_world_matrix;
 
-        let vertices = vertices
+        let vertices = input
+            .vertices
             .iter()
             .map(|v| &transformation * Float4::from_point(*v))
-            .map(|v| (v, culling_bitmask(&v)))
             .collect::<Vec<_>>();
 
-        ShadowPassShaderOutput { vertices }
+        let culling_bitmasks = vertices
+            .iter()
+            .map(|v| culling_bitmask(&v))
+            .collect::<Vec<_>>();
+
+        ShadowPassShaderOutput {
+            vertices,
+            culling_bitmasks,
+        }
     }
 }
 
@@ -66,12 +107,41 @@ pub struct RenderPassShader {
     pub light_view_proj_matrix: Float4x4,
 }
 
+/// Input to the render pass vertex shader
+pub struct RenderPassShaderInput<'a, 'b> {
+    /// Vertices in model space
+    pub vertices: &'a Vec<Float3>,
+    /// Normals in model space
+    pub normals: &'b Vec<Float3>,
+}
+
+impl<'a, 'b> RenderPassShaderInput<'a, 'b> {
+    /// Create a new input to the render pass vertex shader
+    pub fn new(vertices: &'a Vec<Float3>, normals: &'b Vec<Float3>) -> Self {
+        Self { vertices, normals }
+    }
+}
+
 /// Output of the render pass vertex shader
 pub struct RenderPassShaderOutput {
-    /// Transformed homogeneous vertices in camera's clip space and culling bit-masks
-    pub vertices: Vec<(Float4, u8)>,
-    /// Transformed homogeneous vertices in light's clip space and culling bit-masks
-    pub light_vertices: Vec<(Float4, u8)>,
+    /// Transformed homogeneous vertices in camera's clip space
+    pub vertices: Vec<Float4>,
+    /// Bit-masks for culling of triangles, stored by vertex
+    ///
+    /// Stores 7 bits for culling:
+    /// - Bit 0 is 1 if `vertex.z - vertex.w <= 0.0`
+    /// - Bit 1 is 1 if `vertex.z + vertex.w >= 0.0`
+    /// - Bit 2 is 1 if `vertex.y - vertex.w <= 0.0`
+    /// - Bit 3 is 1 if `vertex.y + vertex.w >= 0.0`
+    /// - Bit 4 is 1 if `vertex.x - vertex.w <= 0.0`
+    /// - Bit 5 is 1 if `vertex.x + vertex.w >= 0.0`
+    /// - Bit 6 is 1 if `vertex.w >= 0.0`
+    ///
+    /// A triangle is culled if the bitmasks cb0, cb1, cb2 of the three vertices
+    /// fulfill `cb0 & cb1 & cb2 > 0`.
+    pub culling_bitmasks: Vec<u8>,
+    /// Transformed homogeneous vertices in light's clip space
+    pub light_vertices: Vec<Float4>,
     /// Transformed vertices in world space
     pub vertices_attr: Vec<Float3>,
     /// Transformed normals rotated to world space
@@ -91,14 +161,13 @@ impl RenderPassShader {
             light_view_proj_matrix,
         }
     }
+}
 
+impl<'a, 'b> VertexShader<RenderPassShaderInput<'a, 'b>, RenderPassShaderOutput> for RenderPassShader {
     /// Apply vertex shader to vertices and normals in model space
-    pub fn transform(
-        &self,
-        vertices: &Vec<Float3>,
-        normals: &Vec<Float3>,
-    ) -> RenderPassShaderOutput {
-        let world_vertices = vertices
+    fn transform(&self, input: &RenderPassShaderInput<'a, 'b>) -> RenderPassShaderOutput {
+        let world_vertices = input
+            .vertices
             .iter()
             .map(|v| &self.model_world_matrix * Float4::from_point(*v))
             .collect::<Vec<_>>();
@@ -106,13 +175,15 @@ impl RenderPassShader {
         let vertices = world_vertices
             .iter()
             .map(|v| &self.camera_view_proj_matrix * v)
-            .map(|v| (v, culling_bitmask(&v)))
             .collect::<Vec<_>>();
 
+        let culling_bitmasks = vertices
+            .iter()
+            .map(|v| culling_bitmask(&v))
+            .collect::<Vec<_>>();
         let light_vertices = world_vertices
             .iter()
             .map(|v| &self.light_view_proj_matrix * v)
-            .map(|v| (v, culling_bitmask(&v)))
             .collect::<Vec<_>>();
 
         let vertices_attr = world_vertices
@@ -120,7 +191,8 @@ impl RenderPassShader {
             .map(|v| v.xyz() / v.w)
             .collect::<Vec<_>>();
 
-        let normals = normals
+        let normals = input
+            .normals
             .iter()
             .map(|n| {
                 (&self.model_world_matrix * Float4::from_vector(*n))
@@ -131,6 +203,7 @@ impl RenderPassShader {
 
         RenderPassShaderOutput {
             vertices,
+            culling_bitmasks,
             light_vertices,
             vertices_attr,
             normals,
@@ -139,7 +212,7 @@ impl RenderPassShader {
 }
 
 /// Trait describing a pixel shader
-pub trait Shader {
+pub trait PixelShader {
     /// Given vertex attributes a pixel shader generates a color
     fn color(&self, attrs: VertexAttributes) -> Float3;
 }
@@ -157,7 +230,7 @@ impl TextureShader {
     }
 }
 
-impl Shader for TextureShader {
+impl PixelShader for TextureShader {
     fn color(&self, attrs: VertexAttributes) -> Float3 {
         self.texture.sample(attrs.uv)
     }
@@ -184,7 +257,7 @@ impl DiffuseShader {
     }
 }
 
-impl Shader for DiffuseShader {
+impl PixelShader for DiffuseShader {
     fn color(&self, attrs: VertexAttributes) -> Float3 {
         let normal = attrs.normal.normalized();
         let light_intensity = normal.dot(self.direction_to_light).max(0.0);
@@ -226,7 +299,7 @@ fn linearize_depth(depth: f32, near: f32, far: f32) -> f32 {
     2.0 * far * near / (far + near - (2.0 * depth - 1.0) * (far - near))
 }
 
-impl Shader for DiffuseShaderWithSpotlight {
+impl PixelShader for DiffuseShaderWithSpotlight {
     fn color(&self, attrs: VertexAttributes) -> Float3 {
         let spotlight = self.spotlight.borrow();
 

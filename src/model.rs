@@ -1,5 +1,5 @@
 use crate::math::{Float2, Float3};
-use crate::shader::Shader;
+use crate::shader::PixelShader;
 use crate::transform::Transform;
 use std::fs::read_to_string;
 
@@ -23,7 +23,7 @@ pub struct Model {
     /// Transformation of the model
     pub transform: Transform,
     /// Pixel shader applied to model
-    pub shader: Box<dyn Shader>,
+    pub shader: Box<dyn PixelShader>,
 }
 
 impl Model {
@@ -36,7 +36,7 @@ impl Model {
         normals: Vec<Float3>,
         normal_indices: Vec<usize>,
         transform: Transform,
-        shader: Box<dyn Shader>,
+        shader: Box<dyn PixelShader>,
     ) -> Self {
         Self {
             vertices,

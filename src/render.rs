@@ -7,7 +7,7 @@ use crate::math::{
     signed_triangle_area,
 };
 use crate::scene::Scene;
-use crate::shader::{RenderPassShader, ShadowPassShader};
+use crate::shader::{RenderPassShader, RenderPassShaderInput, ShadowPassShader, ShadowPassShaderInput, VertexShader};
 
 /// Trait used for types that support linear interpolation
 pub trait LinearInterpolation {
@@ -193,21 +193,22 @@ impl RenderTarget {
 
             // Vertex shader
             let model_shader = ShadowPassShader::new(model_world_matrix, light_view_proj_matrix);
-            let out = model_shader.transform(&model.vertices);
+            let shader_input = ShadowPassShaderInput::new(&model.vertices);
+            let out = model_shader.transform(&shader_input);
 
             // Assemble, cull, and subdivide (if necessary) triangles
             let triangles = model
                 .vertex_indices
                 .chunks_exact(3)
                 .filter(|vs| {
-                    (out.vertices[vs[0]].1 & out.vertices[vs[1]].1 & out.vertices[vs[2]].1) == 0
+                    (out.culling_bitmasks[vs[0]] & out.culling_bitmasks[vs[1]] & out.culling_bitmasks[vs[2]]) == 0
                 })
                 .map(|vs| {
                     Triangle::new(
                         [
-                            out.vertices[vs[0]].0,
-                            out.vertices[vs[1]].0,
-                            out.vertices[vs[2]].0,
+                            out.vertices[vs[0]],
+                            out.vertices[vs[1]],
+                            out.vertices[vs[2]],
                         ],
                         [
                             EmptyAttributes(()),
@@ -310,7 +311,8 @@ impl RenderTarget {
                 camera_view_proj_matrix,
                 light_view_proj_matrix,
             );
-            let out = model_shader.transform(&model.vertices, &model.normals);
+            let shader_input = RenderPassShaderInput::new(&model.vertices, &model.normals);
+            let out = model_shader.transform(&shader_input);
 
             // Second render pass
             // Render from main cameras perspective
@@ -322,31 +324,31 @@ impl RenderTarget {
                 .zip(model.texture_coord_indices.chunks_exact(3))
                 .zip(model.normal_indices.chunks_exact(3))
                 .filter(|((vs, _), _)| {
-                    (out.vertices[vs[0]].1 & out.vertices[vs[1]].1 & out.vertices[vs[2]].1) == 0
+                    (out.culling_bitmasks[vs[0]] & out.culling_bitmasks[vs[1]] & out.culling_bitmasks[vs[2]]) == 0
                 })
                 .map(|((vs, uvs), ns)| {
                     Triangle::new(
                         [
-                            out.vertices[vs[0]].0,
-                            out.vertices[vs[1]].0,
-                            out.vertices[vs[2]].0,
+                            out.vertices[vs[0]],
+                            out.vertices[vs[1]],
+                            out.vertices[vs[2]],
                         ],
                         [
                             VertexAttributes::new(
                                 out.vertices_attr[vs[0]],
-                                out.light_vertices[vs[0]].0,
+                                out.light_vertices[vs[0]],
                                 model.texture_coords[uvs[0]],
                                 out.normals[ns[0]],
                             ),
                             VertexAttributes::new(
                                 out.vertices_attr[vs[1]],
-                                out.light_vertices[vs[1]].0,
+                                out.light_vertices[vs[1]],
                                 model.texture_coords[uvs[1]],
                                 out.normals[ns[1]],
                             ),
                             VertexAttributes::new(
                                 out.vertices_attr[vs[2]],
-                                out.light_vertices[vs[2]].0,
+                                out.light_vertices[vs[2]],
                                 model.texture_coords[uvs[2]],
                                 out.normals[ns[2]],
                             ),
