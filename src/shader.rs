@@ -163,7 +163,9 @@ impl RenderPassShader {
     }
 }
 
-impl<'a, 'b> VertexShader<RenderPassShaderInput<'a, 'b>, RenderPassShaderOutput> for RenderPassShader {
+impl<'a, 'b> VertexShader<RenderPassShaderInput<'a, 'b>, RenderPassShaderOutput>
+    for RenderPassShader
+{
     /// Apply vertex shader to vertices and normals in model space
     fn transform(&self, input: &RenderPassShaderInput<'a, 'b>) -> RenderPassShaderOutput {
         let world_vertices = input
@@ -181,6 +183,7 @@ impl<'a, 'b> VertexShader<RenderPassShaderInput<'a, 'b>, RenderPassShaderOutput>
             .iter()
             .map(|v| culling_bitmask(&v))
             .collect::<Vec<_>>();
+
         let light_vertices = world_vertices
             .iter()
             .map(|v| &self.light_view_proj_matrix * v)
@@ -311,10 +314,10 @@ impl PixelShader for DiffuseShaderWithSpotlight {
         let light_fragment = attrs.light_vertex.xyz() / attrs.light_vertex.w * 0.5 + 0.5;
         // Goal here: avoid shadow acne without getting peter panning
         // TODO: Find better way to choose bias
-        let bias = (0.5 * (1.0 - normal.dot(dir_to_light))).max(0.2);
-        // let bias = 0.0;
+        let bias = (0.5 * (1.0 - normal.dot(dir_to_light))).max(0.1);
+        let bias = 0.5;
 
-        let percentage_in_shadow = if light_fragment.x >= 0.0
+        let percentage_in_light = if light_fragment.x >= 0.0
             && light_fragment.x <= 1.0
             && light_fragment.y >= 0.0
             && light_fragment.y <= 1.0
@@ -334,10 +337,12 @@ impl PixelShader for DiffuseShaderWithSpotlight {
             let height = spotlight.shadow_map.height as f32 - 1.0;
             // let xsign = [0.0];
             // let ysign = [0.0];
-            let xsign = [1.0, -1.0];
-            let ysign = [1.0, -1.0];
-            // let xsign = [1.5, -0.5, -1.5];
-            // let ysign = [1.5, -0.5, -1.5];
+            // let xsign = [1.0, -1.0];
+            // let ysign = [1.0, -1.0];
+            // let xsign = [1.0, -0.0, -1.0];
+            // let ysign = [1.0, -0.0, -1.0];
+            let xsign = [1.5, -0.5, -1.5];
+            let ysign = [1.5, -0.5, -1.5];
             let repeats = 1;
             let mut p = 0.0;
             for _ in 0..repeats {
@@ -369,12 +374,12 @@ impl PixelShader for DiffuseShaderWithSpotlight {
             0.0
         };
 
-        // Float3::new(percentage_in_shadow, percentage_in_shadow, percentage_in_shadow)
+        Float3::new(percentage_in_light, percentage_in_light, percentage_in_light)
 
-        let color = self.color * 0.1
-            + self.color * light_intensity * 0.2
-            + self.color * spotlight.color * spot_intensity * percentage_in_shadow * 2.5;
-        // Gamma-correction
-        color.powf(1.0 / 2.2)
+        // let color = self.color * 0.1
+        //     + self.color * light_intensity * 0.2
+        //     + self.color * spotlight.color * spot_intensity * percentage_in_light * 3.0;
+        // // Gamma-correction
+        // color.powf(1.0 / 2.2)
     }
 }

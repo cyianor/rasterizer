@@ -28,5 +28,6 @@ implementing those same algorithms on the CPU.
 ## Goals
 
 - Shadow Maps
-- Additional lights: Point lights
+- Additional lights and shadows: Point lights, Directional Light
 - Rudimentary but interesting shader model, e.g. Blinn-Phong
+- Normal mapping

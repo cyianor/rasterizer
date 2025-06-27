@@ -54,8 +54,8 @@ impl Scene {
             Float3::new(-8.0, 8.0, 0.0),
             Float3::new(0.0, 0.0, 0.0),
             30f32.to_radians(),
-            2048,
-            2048,
+            256,
+            256,
         )));
 
         let (
@@ -66,6 +66,32 @@ impl Scene {
             normals,
             normal_indices,
         ) = read_obj_file("models/dragon.obj").unwrap();
+
+        // Generate smooth normals which are an average of all normals at a specific vertex
+        let mut visited = Vec::new();
+        let mut smooth_normals = Vec::new();
+        let mut smooth_normal_indices = normal_indices.clone();
+        let mut i = 0;
+        for vidx0 in vertex_indices.iter() {
+            if visited.contains(vidx0) {
+                continue;
+            }
+
+            let mut count = 0;
+            let mut vertex_normal = Float3::zeros();
+
+            for (j, (vidx1, nidx)) in vertex_indices.iter().zip(normal_indices.iter()).enumerate() {
+                if *vidx1 == *vidx0 {
+                    vertex_normal += normals[*nidx];
+                    count += 1;
+                    smooth_normal_indices[j] = i;
+                }
+            }
+            
+            smooth_normals.push(vertex_normal / (count as f32));
+            visited.push(*vidx0);
+            i += 1;
+        }
 
         let transform = Transform::new(0.0, 0.0, 0.0, Float3::new(0.0, 4.0, 0.0), Float3::ones());
 
@@ -81,8 +107,10 @@ impl Scene {
             vertex_indices,
             texture_coords,
             texture_coord_indices,
-            normals,
-            normal_indices,
+            // normals,
+            // normal_indices,
+            smooth_normals,
+            smooth_normal_indices,
             transform,
             Box::new(shader),
         ));
